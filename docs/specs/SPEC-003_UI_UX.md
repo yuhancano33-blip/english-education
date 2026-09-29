@@ -10,7 +10,7 @@ El diseño será estrictamente minimalista, reduciendo la carga cognitiva y cent
 
 | Pantalla | Descripción |
 |---|---|
-| Login / Registro | Email y contraseña (Google OAuth opcional) |
+| Login / Registro | Email y contraseña (Google OAuth fuera del MVP) |
 | Sala de espera | Para usuarios `pending` o `rejected` (SPEC-004) |
 | Principal (voz) | Interfaz de conversación con el sidebar a la izquierda |
 | Detalle de sesión | Transcripción, reproductor de audio y resumen de una sesión anterior |

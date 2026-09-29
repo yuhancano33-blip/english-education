@@ -21,10 +21,10 @@ El rol (`admin` o `user`) es independiente del estado. Los administradores tiene
 - **Registro:** al registrarse, un trigger de base de datos crea el perfil con estado `pending` y una fila en `access_requests`.
 - **Sala de espera:** el invitado ve que su solicitud está en revisión. La pantalla escucha cambios en su perfil vía Realtime y lo redirige automáticamente al ser aprobado.
 - **Notificación in-app:** los administradores reciben la notificación vía Supabase Realtime mientras tengan la app abierta.
-- **Notificación por email:** como Realtime solo funciona con la app abierta, un Database Webhook de Supabase envía además un email a ambos administradores.
+- **Notificación por email:** como Realtime solo funciona con la app abierta, al crearse una solicitud un trigger de la base de datos (con `pg_net`) llama al endpoint `POST /api/webhooks/access-request-created`, protegido con un secreto compartido. El endpoint envía el email a los administradores con Resend. La URL y el secreto del webhook se guardan en Supabase Vault por entorno; si faltan o el envío falla, el registro del usuario no se ve afectado.
 - **Resolución:** cualquiera de los 2 administradores aprueba o rechaza. La actualización solo se aplica si la solicitud sigue en `pending`; si ambos actúan a la vez, prevalece la primera decisión y el segundo recibe un aviso.
 - **Auditoría:** se registra qué administrador resolvió cada solicitud y cuándo.
-- **Rechazados:** según la propuesta de SPEC-000, pueden volver a solicitar acceso tras 7 días.
+- **Rechazados:** por ahora no pueden volver a solicitar acceso (SPEC-000, registro de decisiones). Si hace falta, un administrador lo resuelve manualmente.
 
 ## 3. Reglas de Acceso por Estado
 

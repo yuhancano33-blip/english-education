@@ -28,6 +28,10 @@
 | `DAILY_SESSION_LIMIT` | Backend | 10 |
 | `ALLOWED_ORIGINS` | Backend | Dominios aceptados por CORS |
 | `RATE_LIMIT_URL`, `RATE_LIMIT_TOKEN` | Backend | Almacén compartido para límites de peticiones |
+| `RESEND_API_KEY` | Backend | Envío de emails a los administradores |
+| `EMAIL_FROM` | Backend | Remitente de los emails (dominio verificado en Resend) |
+| `ACCESS_WEBHOOK_SECRET` | Backend | Secreto compartido con el trigger de la base de datos (debe coincidir con el guardado en Supabase Vault) |
+| `APP_URL` | Backend | URL pública de la app, para los enlaces de los emails |
 
 El repositorio incluye un `.env.example` con los nombres de las variables, sin valores.
 
@@ -48,6 +52,7 @@ El repositorio incluye un `.env.example` con los nombres de las variables, sin v
 ## 5. Flujo de Trabajo y Git
 
 - **Ramas:** kebab-case con prefijo de tipo: `feature/gemini-live-audio`, `fix/auth-flow`, `chore/update-deps`, `docs/spec-002`.
+- **Una rama por spec:** todo el trabajo de un spec va en su rama; el responsable del proyecto abre el Pull Request cuando el spec está terminado (los agentes no abren PRs).
 - **Rama principal:** `main` protegida y siempre desplegable; cambios solo mediante Pull Request con al menos una revisión.
 - **Commits:** formato Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`).
 - **Despliegues:** cada PR genera un Preview Deployment en Vercel; el merge a `main` despliega a producción.

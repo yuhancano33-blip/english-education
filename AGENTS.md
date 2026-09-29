@@ -12,6 +12,7 @@ Este repositorio implementa el **Agente de Voz Bilingüe (Inglés/Español)**. T
 
 ## Stack
 
+- Lenguaje: TypeScript por defecto; JavaScript permitido cuando sea necesario (por ejemplo, procesadores de `AudioWorklet` o archivos de configuración).
 - Frontend: Vue 3 + Vite + Pinia + Vue Router, desplegado en Vercel.
 - Backend: Node.js en Vercel Functions (carpeta `api/`).
 - Datos: Supabase (PostgreSQL, Auth, Realtime, Storage). Esquema, RLS y políticas de Storage siempre como migraciones con Supabase CLI.
@@ -30,4 +31,5 @@ Este repositorio implementa el **Agente de Voz Bilingüe (Inglés/Español)**. T
 
 - Ramas en kebab-case con prefijo de tipo: `feature/...`, `fix/...`, `chore/...`, `docs/...`.
 - Commits con formato Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`).
-- No hagas commits directos a `main`; trabaja en una rama y abre un Pull Request.
+- Una rama por spec (por ejemplo, `feature/spec-004-access-control`). No hagas commits directos a `main`.
+- El agente **no abre Pull Requests**: el responsable del proyecto abre el PR de cada rama cuando el spec está terminado.

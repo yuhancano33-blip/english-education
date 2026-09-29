@@ -62,7 +62,7 @@
 
 ## 2. API REST
 
-Todas las rutas requieren `Authorization: Bearer <JWT de Supabase>`. Los errores usan el formato `{ "error": { "code": "...", "message": "..." } }` con el código HTTP correspondiente (400, 401, 403, 404, 409, 429, 500).
+Todas las rutas requieren `Authorization: Bearer <JWT de Supabase>`, salvo los webhooks internos, que se autentican con un secreto compartido. Los errores usan el formato `{ "error": { "code": "...", "message": "..." } }` con el código HTTP correspondiente (400, 401, 403, 404, 409, 429, 500).
 
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
@@ -79,6 +79,7 @@ Todas las rutas requieren `Authorization: Bearer <JWT de Supabase>`. Los errores
 | DELETE | `/api/chat/sessions/:id` | Dueño | Elimina sesión, turnos y audio |
 | GET | `/api/admin/access-requests` | admin | Lista de solicitudes, filtrable por estado |
 | POST | `/api/admin/access-requests/:id/resolve` | admin | Body `{ decision: "approve" \| "reject" }` |
+| POST | `/api/webhooks/access-request-created` | Secreto compartido (cabecera `x-webhook-secret`), no JWT | Llamado por la base de datos al crearse una solicitud; envía el email a los admins (SPEC-004) |
 
 #### Respuestas relevantes de POST /api/voice/sessions
 

@@ -1,7 +1,7 @@
 # SPEC-000 · Índice y Visión General
 
 **Proyecto:** Agente de Voz Bilingüe (Inglés/Español)  
-**Documento:** SPEC-000 · **Versión:** 5.0 · **Fecha:** 28 de septiembre de 2026 · **Estado:** Borrador para revisión  
+**Documento:** SPEC-000 · **Versión:** 5.1 · **Fecha:** 28 de septiembre de 2026 · **Estado:** Borrador para revisión  
 **Relacionados:** todos los specs (SPEC-001 a SPEC-007)
 
 > Este documento es el punto de entrada. Resume la visión del producto, las decisiones tomadas y el plan de implementación, y remite a cada spec para el detalle. Sustituye al documento único "Especificaciones Técnicas y Arquitectura Detallada" (v3 y v4).
@@ -58,6 +58,11 @@ Decisiones cerradas en esta versión. Sustituyen a lo indicado en v3 y v4.
 | Audio | Se guarda la sesión completa en Supabase Storage | Permite volver a escuchar las conversaciones |
 | Rol pedagógico | Dos modos (Libre / Tutor) + resumen al final | Aporta valor educativo con bajo costo de implementación |
 | Facturación Gemini | Nivel gratuito en desarrollo; nivel de pago antes de tener usuarios reales | Límites y condiciones de uso de datos del nivel gratuito |
+| Lenguaje | TypeScript por defecto; JavaScript cuando sea necesario | Tipado en API y stores sin forzarlo en piezas donde estorba (AudioWorklet, configuración) |
+| Método de autenticación | Solo email y contraseña; Google OAuth fuera del MVP | Menos configuración y superficie mientras el grupo de usuarios es reducido |
+| Email a los administradores | Resend, llamado desde un endpoint del backend que invoca un trigger de la base de datos | Realtime solo avisa con la app abierta; Resend tiene API simple y nivel gratuito |
+| Reintento de usuarios rechazados | Bloqueado por ahora: un usuario rechazado no puede volver a solicitar acceso | Se reevaluará más adelante; un admin puede resolverlo manualmente |
+| Flujo de ramas | Una rama por spec; el responsable del proyecto abre el PR al terminar el spec | Control de revisión por spec completo |
 
 ## 5. Decisiones Pendientes
 
@@ -67,7 +72,6 @@ Decisiones cerradas en esta versión. Sustituyen a lo indicado en v3 y v4.
 | Límite de sesiones por usuario al día | 10 sesiones diarias (máximo 70 minutos) |
 | Modo por defecto al iniciar | Tutor |
 | Voz del agente | Elegir una voz de Gemini que suene natural en ambos idiomas, probándolas en AI Studio |
-| Reintento de usuarios rechazados | Pueden volver a solicitar acceso tras 7 días |
 | Texto de consentimiento de grabación | Redactar antes de la Fase 3 |
 
 ## 6. Plan de Implementación por Fases
@@ -98,3 +102,4 @@ Decisiones cerradas en esta versión. Sustituyen a lo indicado en v3 y v4.
 | v3 | Documento único inicial. |
 | v4 | Ampliación del documento único: alcance, flujos, modelo de datos, API, seguridad y decisiones pendientes. |
 | v5 | División en 8 specs. Se adopta Gemini 3.8 Live en tiempo real con tokens efímeros, sesiones de 7 minutos, grabación del audio, modos Libre/Tutor con resumen y plan por fases. Se eliminan los proveedores separados de STT/TTS y el endpoint de procesamiento de audio en el backend. |
+| v5.1 | Specs movidos a `docs/specs/`. Decisiones: TypeScript con JavaScript cuando sea necesario, solo email y contraseña, email a admins con Resend, reintento de rechazados bloqueado, una rama por spec con PR abierto por el responsable. |
