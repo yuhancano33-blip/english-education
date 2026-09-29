@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.vercel/
+*.log
+.DS_Store
+
+# Variables de entorno: nunca se versionan, salvo la plantilla
+.env
+.env.*
+!.env.example
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
