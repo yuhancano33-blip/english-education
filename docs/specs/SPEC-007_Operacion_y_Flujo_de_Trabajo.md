@@ -8,7 +8,7 @@
 
 | Entorno | Supabase | Gemini |
 |---|---|---|
-| Local | Proyecto de desarrollo (o Supabase local con CLI) | Clave del proyecto `english` en nivel gratuito |
+| Local | Proyecto de desarrollo en la nube (no se usa Docker ni Supabase local); migraciones con `supabase link` + `supabase db push` | Clave del proyecto `english` en nivel gratuito |
 | Preview (cada PR) | Proyecto de desarrollo | Clave de nivel gratuito |
 | Producción | Proyecto de producción separado | Clave con facturación activada y tope de gasto |
 

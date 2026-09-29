@@ -102,4 +102,4 @@ Decisiones cerradas en esta versión. Sustituyen a lo indicado en v3 y v4.
 | v3 | Documento único inicial. |
 | v4 | Ampliación del documento único: alcance, flujos, modelo de datos, API, seguridad y decisiones pendientes. |
 | v5 | División en 8 specs. Se adopta Gemini 3.8 Live en tiempo real con tokens efímeros, sesiones de 7 minutos, grabación del audio, modos Libre/Tutor con resumen y plan por fases. Se eliminan los proveedores separados de STT/TTS y el endpoint de procesamiento de audio en el backend. |
-| v5.1 | Specs movidos a `docs/specs/`. Decisiones: TypeScript con JavaScript cuando sea necesario, solo email y contraseña, email a admins con Resend, reintento de rechazados bloqueado, una rama por spec con PR abierto por el responsable. |
+| v5.1 | Specs movidos a `docs/specs/`. Decisiones: TypeScript con JavaScript cuando sea necesario, solo email y contraseña, email a admins con Resend, reintento de rechazados bloqueado, una rama por spec con PR abierto por el responsable. Sin Docker: el entorno local usa el proyecto de Supabase de desarrollo en la nube. |

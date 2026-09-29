@@ -12,7 +12,8 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit && tsc --noEmit -p api/tsconfig.json",
-    "db:reset": "supabase db reset"
+    "db:push": "supabase db push",
+    "db:status": "supabase migration list"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
