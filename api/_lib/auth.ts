@@ -42,6 +42,15 @@ export async function requireUser(req: VercelRequest): Promise<Profile> {
   return profile
 }
 
+/** Solo usuarios aprobados (SPEC-004 §3). */
+export async function requireApproved(req: VercelRequest): Promise<Profile> {
+  const profile = await requireUser(req)
+  if (profile.status !== 'approved') {
+    throw new HttpError(403, 'not_approved', 'Tu cuenta aún no está aprobada')
+  }
+  return profile
+}
+
 export async function requireAdmin(req: VercelRequest): Promise<Profile> {
   const profile = await requireUser(req)
   if (profile.role !== 'admin') {
