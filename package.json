@@ -16,6 +16,7 @@
     "db:status": "supabase migration list"
   },
   "dependencies": {
+    "@google/genai": "^2.26.0",
     "@supabase/supabase-js": "^2.45.0",
     "pinia": "^3.0.0",
     "vue": "^3.5.0",
