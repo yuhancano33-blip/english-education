@@ -33,3 +33,5 @@ Este repositorio implementa el **Agente de Voz Bilingüe (Inglés/Español)**. T
 - Commits con formato Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`).
 - Una rama por spec (por ejemplo, `feature/spec-004-access-control`). No hagas commits directos a `main`.
 - El agente **no abre Pull Requests**: el responsable del proyecto abre el PR de cada rama cuando el spec está terminado.
+- Autor de los commits: `yuhancano33-blip <yuhancano33@gmail.com>` (configurado solo en este repositorio, sin `--global`). Vercel Hobby con repo privado solo despliega commits del dueño del proyecto.
+- Los commits **no llevan trailers `Co-authored-by`** ni ningún otro coautor.
