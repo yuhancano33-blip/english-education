@@ -68,6 +68,14 @@ a {
   outline-offset: 2px;
 }
 
+.dev-banner {
+  padding: 0.4rem 1rem;
+  background: #ffd84d;
+  color: #1c1c1f;
+  font-weight: 600;
+  text-align: center;
+}
+
 .app-header {
   display: flex;
   align-items: center;

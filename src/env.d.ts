@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL: string
   readonly VITE_SUPABASE_ANON_KEY: string
+  /** Solo desarrollo: ver src/lib/devAccess.ts */
+  readonly VITE_DEV_SKIP_ACCESS_CHECK?: string
 }
 
 interface ImportMeta {

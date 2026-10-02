@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { devSkipAccessCheck } from '@/lib/devAccess'
 import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
@@ -26,6 +27,12 @@ export const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/error',
+      name: 'profile-error',
+      component: () => import('@/views/ProfileErrorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/',
       name: 'home',
       component: () => import('@/views/HomeView.vue'),
@@ -50,16 +57,25 @@ router.beforeEach(async (to) => {
     return to.meta.guestOnly ? true : { name: 'login' }
   }
 
-  // Con sesión pero sin perfil (error al cargarlo): la sala de espera muestra el error
+  const accessScreens = ['waiting-room', 'profile-error']
+
+  // Solo desarrollo local: se trata al usuario como aprobado (ver src/lib/devAccess.ts)
+  if (devSkipAccessCheck) {
+    if (to.meta.guestOnly || accessScreens.includes(String(to.name))) return { name: 'home' }
+    if (to.meta.requiresAdmin && !auth.isAdmin) return { name: 'home' }
+    return true
+  }
+
+  // Sin perfil = no se pudo cargar (/api/me falló). Es un error, nunca "pending".
   if (!auth.profile) {
-    return to.name === 'waiting-room' ? true : { name: 'waiting-room' }
+    return to.name === 'profile-error' ? true : { name: 'profile-error' }
   }
 
   if (!auth.isApproved) {
     return to.name === 'waiting-room' ? true : { name: 'waiting-room' }
   }
 
-  if (to.meta.guestOnly || to.name === 'waiting-room') return { name: 'home' }
+  if (to.meta.guestOnly || accessScreens.includes(String(to.name))) return { name: 'home' }
   if (to.meta.requiresAdmin && !auth.isAdmin) return { name: 'home' }
   return true
 })

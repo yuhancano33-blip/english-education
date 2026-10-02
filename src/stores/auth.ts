@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { Session } from '@supabase/supabase-js'
 import { api } from '@/lib/api'
+import { devSkipAccessCheck } from '@/lib/devAccess'
 import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/types'
 
@@ -11,7 +12,8 @@ export const useAuthStore = defineStore('auth', () => {
   const profileError = ref<string | null>(null)
 
   const isAdmin = computed(() => profile.value?.role === 'admin')
-  const isApproved = computed(() => profile.value?.status === 'approved')
+  // El bypass de desarrollo solo cambia la navegación; el backend sigue validando
+  const isApproved = computed(() => devSkipAccessCheck || profile.value?.status === 'approved')
 
   let initPromise: Promise<void> | null = null
 
@@ -35,14 +37,18 @@ export const useAuthStore = defineStore('auth', () => {
     return initPromise
   }
 
-  /** Rol y estado vienen del backend (users_profile), nunca de user_metadata. */
+  /**
+   * Rol y estado vienen del backend (users_profile), nunca de user_metadata.
+   * Un fallo aquí deja `profile` en null y `profileError` con el motivo: el
+   * router lo muestra como error, nunca como estado pending.
+   */
   async function fetchProfile() {
     try {
       profile.value = await api<Profile>('/api/me')
       profileError.value = null
     } catch (err) {
       profile.value = null
-      profileError.value = err instanceof Error ? err.message : 'No se pudo cargar el perfil'
+      profileError.value = err instanceof Error ? err.message : 'No se pudo cargar tu perfil'
     }
   }
 
@@ -66,6 +72,7 @@ export const useAuthStore = defineStore('auth', () => {
     await supabase.auth.signOut()
     session.value = null
     profile.value = null
+    profileError.value = null
   }
 
   return {

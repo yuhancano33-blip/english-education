@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { watch } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { devSkipAccessCheck } from '@/lib/devAccess'
 import { useAccessRequestsStore } from '@/stores/accessRequests'
 import { useAuthStore } from '@/stores/auth'
 
@@ -29,6 +30,10 @@ async function signOut() {
 </script>
 
 <template>
+  <div v-if="devSkipAccessCheck" class="dev-banner" role="status">
+    Modo desarrollo: control de acceso desactivado
+  </div>
+
   <header v-if="auth.session" class="app-header">
     <RouterLink to="/" class="brand">English Education</RouterLink>
     <nav aria-label="Principal" class="nav">

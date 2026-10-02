@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "dev:full": "vercel dev",
+    "dev:full": "npx vercel dev",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit && tsc --noEmit -p api/tsconfig.json",
