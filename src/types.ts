@@ -1,6 +1,8 @@
 export type UserRole = 'admin' | 'user'
 export type UserStatus = 'pending' | 'approved' | 'rejected'
 
+export type SessionMode = 'free' | 'tutor'
+
 export interface Profile {
   id: string
   email: string

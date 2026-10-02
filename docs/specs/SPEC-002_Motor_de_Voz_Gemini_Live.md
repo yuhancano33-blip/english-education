@@ -23,7 +23,7 @@ La API key de Gemini nunca llega al navegador. El backend genera un token efíme
 - **Expiración de 10 minutos**, suficiente para una sesión de 7 minutos.
 - **Configuración bloqueada:** modelo, modalidad de respuesta, voz e instrucciones de sistema quedan fijadas en el token, de modo que el usuario no puede cambiar el prompt ni usar otro modelo con su token.
 
-El endpoint `POST /api/voice/sessions` devuelve: `sessionId`, `token`, `expiresAt`, `maxDurationSec` (420) y el modo elegido.
+El endpoint `POST /api/voice/sessions` devuelve: `sessionId`, `token`, `expiresAt`, `maxDurationSec` (420), el modo elegido y `model` (el cliente lo necesita para abrir la conexión; aun así queda bloqueado en el token).
 
 ## 3. Pipeline de Audio
 

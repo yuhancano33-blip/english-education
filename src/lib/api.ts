@@ -5,6 +5,8 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
+    /** Campos extra del error, p. ej. `resetsAt` en el 429 de sesiones */
+    public readonly details: Record<string, unknown> = {},
   ) {
     super(message)
   }
@@ -26,6 +28,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       response.status,
       body?.error?.code ?? 'unknown_error',
       body?.error?.message ?? 'Error inesperado',
+      body?.error ?? {},
     )
   }
   return body as T
