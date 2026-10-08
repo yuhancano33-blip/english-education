@@ -28,16 +28,17 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(0, 'network_error', 'No se pudo conectar con el servidor. Revisa tu conexión.')
   }
 
-  // Si la respuesta no es JSON, la API no está detrás de esta URL. Ocurre con
-  // `npm run dev`: Vite sirve los archivos de api/ como código fuente con 200.
-  // Nunca debe tratarse como una respuesta válida (ni como estado pending).
+  // Si la respuesta no es JSON, la API no está detrás de esta URL (p. ej. un
+  // servidor de desarrollo sin el plugin de dev/api-dev-server.ts, que sirve
+  // api/*.ts como código fuente con 200). Nunca se trata como respuesta válida
+  // ni como estado pending.
   const isJson = response.headers.get('content-type')?.includes('application/json') ?? false
   if (!isJson) {
     throw new ApiError(
       response.status,
       'api_unavailable',
       import.meta.env.DEV
-        ? 'La API (/api) no está disponible. En local arranca el proyecto con `npm run dev:full` (vercel dev), no con `npm run dev`.'
+        ? 'La API (/api) no está disponible. Detén el servidor y vuelve a arrancarlo con `npm run dev`; revisa la terminal por si hay errores.'
         : 'El servidor devolvió una respuesta inesperada. Inténtalo de nuevo más tarde.',
     )
   }

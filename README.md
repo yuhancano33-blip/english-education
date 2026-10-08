@@ -7,7 +7,6 @@ Agente de voz bilingüe (inglés/español) para uso personal y compartido. La es
 - Node.js 20 o superior
 - Un proyecto de Supabase **de desarrollo** en la nube (no se usa Docker ni Supabase local, SPEC-007)
 - [Supabase CLI](https://supabase.com/docs/guides/cli), usado con `npx supabase`
-- [Vercel CLI](https://vercel.com/docs/cli), usada con `npx vercel`, para ejecutar frontend y funciones `api/` juntos
 
 ## Puesta en marcha local
 
@@ -17,18 +16,17 @@ Agente de voz bilingüe (inglés/español) para uso personal y compartido. La es
    - `npx supabase link --project-ref <ref-del-proyecto-dev>` (pide la contraseña de la base de datos)
 3. Aplica las migraciones de `supabase/migrations/`: `npm run db:push`.
 4. Copia `.env.example` a `.env` y rellénalo con la URL (sin `/rest/v1/`) y las claves de *Project Settings → API* del proyecto de desarrollo, más `GEMINI_API_KEY`.
-5. Vincula la CLI de Vercel con el proyecto (una sola vez):
-   - `npx vercel login`
-   - `npx vercel link` (elige la cuenta `yuhancano33-blip` y el proyecto `english-education`)
-6. Arranca la app con **`npm run dev:full`** y abre **http://localhost:3000**.
+5. Arranca la app con **`npm run dev`** y abre **http://localhost:5173**.
 
-En el dashboard de Supabase (*Authentication → URL Configuration*) añade `http://localhost:3000` y `http://localhost:5173` como URLs de redirección.
+En el dashboard de Supabase (*Authentication → URL Configuration*) añade `http://localhost:5173` como URL de redirección.
 
-### `npm run dev` vs `npm run dev:full`
+### Cómo funciona la API en local
 
-Las rutas `/api/*` son Vercel Functions: **solo existen con `vercel dev`** (`npm run dev:full`) o desplegadas en Vercel.
+Las rutas `/api/*` son Vercel Functions. En local no hace falta la CLI de Vercel: el plugin [`dev/api-dev-server.ts`](dev/api-dev-server.ts) las ejecuta dentro del servidor de Vite con el mismo enrutado por archivos (`api/me.ts` → `/api/me`, `[id]` → parámetro) y carga las variables de `.env` en el proceso de Node. Las variables sin prefijo `VITE_` nunca llegan al navegador.
 
-`npm run dev` levanta únicamente el frontend con Vite. Ahí `/api/me` no funciona (Vite devuelve el código fuente del archivo en lugar de ejecutarlo), así que la app muestra *"La API (/api) no está disponible"* y no puede saber si tu cuenta está aprobada. Úsalo solo para trabajar en estilos o componentes.
+Los errores de las funciones aparecen en la terminal donde corre `npm run dev`. El plugin solo existe en desarrollo: en Vercel (producción y previews) las funciones se despliegan normalmente.
+
+Alternativa con el entorno exacto de Vercel: `npm run dev:full` (`vercel dev`, en http://localhost:3000), que requiere `npx vercel login` y `npx vercel link`.
 
 ### Bypass del control de acceso (solo desarrollo)
 
@@ -54,8 +52,8 @@ Si no se configuran, el registro funciona igual y los admins solo reciben la not
 
 | Comando | Uso |
 |---|---|
-| `npm run dev:full` | **Desarrollo normal**: frontend + funciones `api/` con `vercel dev` (http://localhost:3000) |
-| `npm run dev` | Solo frontend con Vite, sin API (http://localhost:5173) |
+| `npm run dev` | **Desarrollo normal**: frontend + funciones `api/` (http://localhost:5173) |
+| `npm run dev:full` | Alternativa con `vercel dev` (http://localhost:3000); requiere login y link de Vercel |
 | `npm run build` | Comprobación de tipos y build de producción |
 | `npm run typecheck` | Tipos del frontend y de la API |
 | `npm run db:push` | Aplica las migraciones pendientes al proyecto vinculado |
