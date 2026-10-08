@@ -27,7 +27,22 @@ export async function requireUser(req: VercelRequest): Promise<Profile> {
   const db = supabaseAdmin()
   const { data, error } = await db.auth.getUser(token)
   if (error || !data.user) {
-    throw new HttpError(401, 'unauthorized', 'Token inválido o expirado')
+    // Sin respuesta o 5xx de Supabase Auth = no se pudo verificar, no es un token malo
+    const status = error?.status ?? 0
+    const unreachable = !!error && (status === 0 || status >= 500 || error.name === 'AuthRetryableFetchError')
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'auth_verify_failed',
+        status,
+        name: error?.name,
+        message: error?.message,
+      }),
+    )
+    if (unreachable) {
+      throw new HttpError(503, 'auth_unavailable', 'No se pudo verificar tu sesión. Inténtalo de nuevo en unos segundos.')
+    }
+    throw new HttpError(401, 'unauthorized', 'Tu sesión expiró. Vuelve a iniciar sesión.')
   }
 
   const { data: profile, error: profileError } = await db
