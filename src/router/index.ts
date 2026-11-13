@@ -39,6 +39,12 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresApproved: true },
     },
     {
+      path: '/sesiones/:id',
+      name: 'session-detail',
+      component: () => import('@/views/SessionDetailView.vue'),
+      meta: { requiresAuth: true, requiresApproved: true },
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/admin/AccessRequestsView.vue'),

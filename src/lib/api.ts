@@ -28,6 +28,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
   }
 
+  // 204: éxito sin cuerpo (p. ej. DELETE)
+  if (response.status === 204) return undefined as T
+
   // Si la respuesta no es JSON, la API no está detrás de esta URL (p. ej. un
   // servidor de desarrollo sin el plugin de dev/api-dev-server.ts, que sirve
   // api/*.ts como código fuente con 200). Nunca se trata como respuesta válida

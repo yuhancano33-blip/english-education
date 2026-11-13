@@ -4,11 +4,16 @@ import { ApiError, api } from '@/lib/api'
 import { LiveClient } from '@/voice/live-client'
 import { Microphone } from '@/voice/microphone'
 import { pcmToBase64 } from '@/voice/pcm'
+import { TranscriptSync, uploadRecording } from '@/voice/persistence'
 import { PcmPlayer } from '@/voice/player'
+import { SessionRecorder, type Recording } from '@/voice/recorder'
 import type { SessionMode } from '@/types'
 
 /** Estados de la interfaz de voz (SPEC-003 §4). */
 export type VoiceState = 'idle' | 'connecting' | 'active' | 'muted' | 'saving' | 'error'
+
+/** Paso actual de la pantalla "Guardando…" */
+export type SavingStep = 'transcript' | 'audio' | 'closing'
 
 export interface TranscriptEntry {
   id: number
@@ -19,6 +24,13 @@ export interface TranscriptEntry {
 export interface VoiceError {
   code: string
   message: string
+}
+
+export interface SessionResult {
+  sessionId: string
+  status: 'completed' | 'interrupted'
+  duration: number
+  audioSaved: boolean
 }
 
 interface CreatedSession {
@@ -38,21 +50,26 @@ const GOODBYE_MESSAGE =
 
 export const useVoiceSessionStore = defineStore('voiceSession', () => {
   const state = ref<VoiceState>('idle')
+  const savingStep = ref<SavingStep>('transcript')
   const mode = ref<SessionMode>('tutor')
   const elapsed = ref(0)
   const maxDuration = ref(420)
   const transcript = ref<TranscriptEntry[]>([])
   const error = ref<VoiceError | null>(null)
   const warning = ref(false)
-  const lastResult = ref<{ status: 'completed' | 'interrupted'; duration: number } | null>(null)
+  const lastResult = ref<SessionResult | null>(null)
   const analysers = shallowRef<{ input: AnalyserNode; output: AnalyserNode } | null>(null)
 
   const remaining = computed(() => Math.max(0, maxDuration.value - elapsed.value))
   const inSession = computed(() => state.value === 'active' || state.value === 'muted')
 
+  // Un único AudioContext para captura, reproducción y grabación
+  let context: AudioContext | null = null
   let mic: Microphone | null = null
   let player: PcmPlayer | null = null
+  let recorder: SessionRecorder | null = null
   let live: LiveClient | null = null
+  let transcriptSync: TranscriptSync | null = null
   let sessionId: string | null = null
   let startedAt = 0
   let timer: ReturnType<typeof setInterval> | null = null
@@ -60,14 +77,15 @@ export const useVoiceSessionStore = defineStore('voiceSession', () => {
   let ending = false
   let nextEntryId = 0
 
-  /** Debe llamarse desde un clic: crea los AudioContext dentro del gesto. */
+  /** Debe llamarse desde un clic: crea el AudioContext dentro del gesto. */
   async function start() {
     if (state.value !== 'idle' && state.value !== 'error') return
     resetSessionState()
     state.value = 'connecting'
 
-    player = new PcmPlayer()
-    mic = new Microphone()
+    context = new AudioContext()
+    player = new PcmPlayer(context)
+    mic = new Microphone(context)
 
     // 1. Micrófono primero: si se deniega, no se gasta una sesión del límite diario
     try {
@@ -92,6 +110,7 @@ export const useVoiceSessionStore = defineStore('voiceSession', () => {
     }
     sessionId = created.sessionId
     maxDuration.value = created.maxDurationSec
+    transcriptSync = new TranscriptSync(created.sessionId)
 
     // 3. Conexión directa a Gemini Live
     try {
@@ -100,7 +119,8 @@ export const useVoiceSessionStore = defineStore('voiceSession', () => {
         onInterrupted: () => player?.flush(),
         onInputTranscript: (text) => appendTranscript('user', text),
         onOutputTranscript: (text) => appendTranscript('assistant', text),
-        onTurnComplete: () => {},
+        // Al cerrar cada turno se guarda la transcripción (SPEC-002 §3)
+        onTurnComplete: () => void syncTranscript(),
         onError: () => {},
         onClose: (event) => {
           if (!ending) void end('interrupted', closeError(event))
@@ -108,14 +128,25 @@ export const useVoiceSessionStore = defineStore('voiceSession', () => {
       })
     } catch {
       await releaseAudio()
-      await finishOnServer('interrupted', 0)
+      await finishOnServer('interrupted', 0, null)
       return fail({
         code: 'connection_failed',
         message: 'No se pudo conectar con el servicio de voz. Inténtalo de nuevo.',
       })
     }
 
-    await player.resume()
+    await context.resume()
+    // 4. Grabación de micrófono + agente (SPEC-002 §5). Si el navegador no
+    // puede grabar, la conversación sigue y se guarda sin audio.
+    try {
+      if (mic.source) {
+        recorder = new SessionRecorder(context, [mic.source, player.analyser])
+        recorder.start()
+      }
+    } catch {
+      recorder = null
+    }
+
     analysers.value = { input: mic.analyser, output: player.analyser }
     startedAt = Date.now()
     state.value = 'active'
@@ -147,21 +178,39 @@ export const useVoiceSessionStore = defineStore('voiceSession', () => {
     }
   }
 
-  /** Cierre por el usuario, por tiempo o por desconexión. */
+  /**
+   * Cierre por el usuario, por tiempo o por desconexión: guarda los últimos
+   * turnos, sube el audio y cierra la sesión en el servidor (SPEC-001 §4).
+   */
   async function end(status: 'completed' | 'interrupted', withError?: VoiceError) {
     if (ending || !inSession.value) return
     ending = true
     state.value = 'saving'
+    savingStep.value = 'transcript'
     if (timer) clearInterval(timer)
     timer = null
 
     const duration = Math.min(maxDuration.value, elapsed.value)
     live?.close()
     live = null
-    await releaseAudio()
-    await finishOnServer(status, duration)
 
-    lastResult.value = { status, duration }
+    const recording: Recording | null = recorder ? await recorder.stop() : null
+    recorder = null
+    await releaseAudio()
+    await syncTranscript()
+
+    let audioPath: string | null = null
+    if (recording && sessionId) {
+      savingStep.value = 'audio'
+      audioPath = await uploadRecording(sessionId, recording)
+    }
+
+    savingStep.value = 'closing'
+    await finishOnServer(status, duration, audioPath && recording ? { path: audioPath, mime: recording.mime } : null)
+
+    if (sessionId) {
+      lastResult.value = { sessionId, status, duration, audioSaved: !!audioPath }
+    }
     if (withError) return fail(withError)
     state.value = 'idle'
   }
@@ -180,23 +229,48 @@ export const useVoiceSessionStore = defineStore('voiceSession', () => {
     }
   }
 
-  async function finishOnServer(status: 'completed' | 'interrupted', duration: number) {
+  function syncTranscript() {
+    if (!transcriptSync) return Promise.resolve()
+    return transcriptSync.sync(
+      transcript.value.map((e) => ({ turn_index: e.id, sender: e.sender, content: e.text })),
+    )
+  }
+
+  async function finishOnServer(
+    status: 'completed' | 'interrupted',
+    duration: number,
+    audio: { path: string; mime: string } | null,
+  ) {
     if (!sessionId) return
+    const body = {
+      duration_seconds: duration,
+      status,
+      ...(audio ? { audio_path: audio.path, audio_mime: audio.mime } : {}),
+    }
     try {
-      await api(`/api/chat/sessions/${sessionId}/finish`, {
-        method: 'POST',
-        body: JSON.stringify({ duration_seconds: duration, status }),
-      })
+      await api(`/api/chat/sessions/${sessionId}/finish`, { method: 'POST', body: JSON.stringify(body) })
     } catch {
-      // Si falla, el servidor la cerrará como interrumpida a los 10 min (SPEC-006 §3)
+      if (!audio) return
+      // Si el audio no se aceptó, la sesión se cierra igualmente sin él
+      try {
+        await api(`/api/chat/sessions/${sessionId}/finish`, {
+          method: 'POST',
+          body: JSON.stringify({ duration_seconds: duration, status }),
+        })
+      } catch {
+        // Si falla, el servidor la cerrará como interrumpida a los 10 min (SPEC-006 §3)
+      }
     }
   }
 
   async function releaseAudio() {
     analysers.value = null
-    await Promise.allSettled([mic?.stop(), player?.close()])
+    mic?.stop()
+    player?.stop()
     mic = null
     player = null
+    if (context && context.state !== 'closed') await context.close().catch(() => {})
+    context = null
   }
 
   function fail(err: VoiceError) {
@@ -213,10 +287,13 @@ export const useVoiceSessionStore = defineStore('voiceSession', () => {
     goodbyeSent = false
     ending = false
     sessionId = null
+    transcriptSync = null
+    nextEntryId = 0
   }
 
   return {
     state,
+    savingStep,
     mode,
     elapsed,
     remaining,

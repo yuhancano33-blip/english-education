@@ -52,6 +52,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /** Acepta la grabación de conversaciones (SPEC-006 §7). */
+  async function acceptRecording() {
+    profile.value = await api<Profile>('/api/me/consent', { method: 'POST' })
+  }
+
   async function signIn(email: string, password: string) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
@@ -83,6 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
     isApproved,
     init,
     fetchProfile,
+    acceptRecording,
     signIn,
     signUp,
     signOut,
