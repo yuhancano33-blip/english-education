@@ -48,7 +48,8 @@
 
 ## 7. Privacidad
 
-- **Consentimiento:** antes de la primera sesión, el usuario acepta que la conversación se graba y se guarda. Un aviso breve se muestra también al iniciar cada sesión.
+- **Consentimiento:** antes de la primera sesión, el usuario acepta que la conversación se graba y se guarda. Un aviso breve se muestra también al iniciar cada sesión. La aceptación se guarda en `users_profile.recording_consent_at` y el backend no emite tokens de voz sin ella. Texto aprobado:
+  > Tus conversaciones se graban (audio y transcripción) y se guardan en tu historial para que puedas volver a escucharlas. Solo tú puedes acceder a ellas y puedes borrarlas cuando quieras. El audio se procesa con Google Gemini para generar las respuestas.
 - **Retención:** los audios se conservan 90 días (propuesta pendiente de confirmar) o hasta que el usuario borre la sesión; las transcripciones y resúmenes, hasta que el usuario los borre.
 - **Borrado:** eliminar una sesión borra turnos, resumen y audio. Eliminar la cuenta borra todos sus datos.
 - **Nivel gratuito de Gemini:** en ese nivel Google puede usar los datos enviados para mejorar sus productos. Por eso solo se usa en desarrollo con datos de prueba, y se pasa al nivel de pago antes de que usuarios reales usen la aplicación.

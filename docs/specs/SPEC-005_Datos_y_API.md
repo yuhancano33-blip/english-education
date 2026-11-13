@@ -15,6 +15,7 @@
 | display_name | text | Opcional |
 | role | enum (admin, user) | Default `user`; solo modificable con permisos de servidor |
 | status | enum (pending, approved, rejected) | Default `pending` |
+| recording_consent_at | timestamptz, nullable | Cuándo aceptó la grabación (SPEC-006 §7); null = no ha aceptado |
 | created_at / updated_at | timestamptz | Default `now()` |
 
 #### access_requests
@@ -66,13 +67,14 @@ Todas las rutas requieren `Authorization: Bearer <JWT de Supabase>`, salvo los w
 
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
-| GET | `/api/me` | Autenticado | Perfil, rol y estado; decide qué pantalla mostrar |
+| GET | `/api/me` | Autenticado | Perfil, rol, estado y `recording_consent_at`; decide qué pantalla mostrar |
+| POST | `/api/me/consent` | approved | Registra la aceptación de la grabación (SPEC-006 §7) |
 | POST | `/api/voice/sessions` | approved | Body `{ mode }`. Valida límites, crea la sesión y devuelve `sessionId`, token efímero, `expiresAt`, `maxDurationSec`, `mode` y `model` |
 | POST | `/api/chat/sessions/:id/messages` | Dueño | Body `{ turns: [{ turn_index, sender, content }] }`. Guarda turnos de la transcripción |
 | POST | `/api/chat/sessions/:id/audio-upload-url` | Dueño | Devuelve una URL firmada para subir el audio a Storage |
 | POST | `/api/chat/sessions/:id/finish` | Dueño | Body `{ duration_seconds, audio_path, audio_mime, status }`. Cierra la sesión y genera el resumen. En la Fase 2 solo acepta `{ duration_seconds, status }`; el audio y el resumen se añaden en las fases 3 y 4 |
 | POST | `/api/chat/sessions/:id/summary` | Dueño | Vuelve a generar el resumen si falló |
-| GET | `/api/chat/sessions` | approved | Lista paginada de sesiones para el sidebar |
+| GET | `/api/chat/sessions` | approved | Lista paginada de sesiones para el sidebar (`?limit=` y `?before=<created_at>` como cursor) |
 | GET | `/api/chat/sessions/:id` | Dueño | Detalle: datos de la sesión, turnos y resumen |
 | GET | `/api/chat/sessions/:id/audio` | Dueño | URL firmada de descarga del audio (válida pocos minutos) |
 | PATCH | `/api/chat/sessions/:id` | Dueño | Renombrar |
@@ -86,7 +88,7 @@ Todas las rutas requieren `Authorization: Bearer <JWT de Supabase>`, salvo los w
 | Código | Caso |
 |---|---|
 | 201 | Sesión creada con su token |
-| 403 | Usuario no aprobado |
+| 403 | Usuario no aprobado, o sin consentimiento de grabación (`code: consent_required`) |
 | 409 | Ya existe una sesión activa |
 | 429 | Límite diario de sesiones alcanzado; incluye `resetsAt` (medianoche en `America/Bogota`) |
 | 502 | Gemini no pudo emitir el token |
