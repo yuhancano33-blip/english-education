@@ -26,6 +26,10 @@ export default route({
   POST: async (req, res) => {
     const user = await requireApproved(req)
     const { mode } = parse(bodySchema, req.body)
+    // Sin consentimiento de grabación no se inicia ninguna sesión (SPEC-006 §7)
+    if (!user.recording_consent_at) {
+      throw new HttpError(403, 'consent_required', 'Debes aceptar la grabación antes de iniciar una sesión')
+    }
     const db = supabaseAdmin()
 
     const { data, error } = await db

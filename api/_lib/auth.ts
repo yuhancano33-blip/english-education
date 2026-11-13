@@ -11,7 +11,10 @@ export interface Profile {
   display_name: string | null
   role: UserRole
   status: UserStatus
+  recording_consent_at: string | null
 }
+
+export const PROFILE_COLUMNS = 'id, email, display_name, role, status, recording_consent_at'
 
 /**
  * Verifica el JWT de Supabase y carga rol y estado desde users_profile,
@@ -47,7 +50,7 @@ export async function requireUser(req: VercelRequest): Promise<Profile> {
 
   const { data: profile, error: profileError } = await db
     .from('users_profile')
-    .select('id, email, display_name, role, status')
+    .select(PROFILE_COLUMNS)
     .eq('id', data.user.id)
     .maybeSingle<Profile>()
   if (profileError) throw profileError
