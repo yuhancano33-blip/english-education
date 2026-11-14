@@ -1,7 +1,7 @@
 # SPEC-000 · Índice y Visión General
 
 **Proyecto:** Agente de Voz Bilingüe (Inglés/Español)  
-**Documento:** SPEC-000 · **Versión:** 5.3 · **Fecha:** 28 de septiembre de 2026 · **Estado:** Borrador para revisión  
+**Documento:** SPEC-000 · **Versión:** 5.4 · **Fecha:** 28 de septiembre de 2026 · **Estado:** Borrador para revisión  
 **Relacionados:** todos los specs (SPEC-001 a SPEC-007)
 
 > Este documento es el punto de entrada. Resume la visión del producto, las decisiones tomadas y el plan de implementación, y remite a cada spec para el detalle. Sustituye al documento único "Especificaciones Técnicas y Arquitectura Detallada" (v3 y v4).
@@ -71,6 +71,9 @@ Decisiones cerradas en esta versión. Sustituyen a lo indicado en v3 y v4.
 | Texto de consentimiento de grabación | El definido en SPEC-006 §7 | Aprobado antes de la Fase 3 |
 | Registro del consentimiento | Columna `users_profile.recording_consent_at` y endpoint `POST /api/me/consent`; sin consentimiento no se emite token de voz | Queda constancia de cuándo aceptó y el backend lo exige |
 | Título provisional de sesión | Hasta la Fase 4 se muestra modo y fecha (p. ej. "Tutor · 12 nov, 15:30"); el usuario puede renombrar | El título generado desde el resumen llega con el resumen |
+| Idioma del resumen | Explicaciones, temas y consejos en español; frases corregidas, términos y ejemplos en inglés | El usuario es hispanohablante aprendiendo inglés |
+| Título generado | La misma llamada del resumen devuelve un `title` corto (máx. 6 palabras); solo se aplica si el usuario no renombró la sesión | Evita una segunda llamada al modelo |
+| Resumen de sesiones interrumpidas | También se genera si hubo conversación (al menos un turno del usuario) | Una sesión cortada sigue teniendo valor pedagógico |
 
 ## 5. Decisiones Pendientes
 
@@ -110,3 +113,4 @@ Decisiones cerradas en esta versión. Sustituyen a lo indicado en v3 y v4.
 | v5.1 | Specs movidos a `docs/specs/`. Decisiones: TypeScript con JavaScript cuando sea necesario, solo email y contraseña, email a admins con Resend, reintento de rechazados bloqueado, una rama por spec con PR abierto por el responsable. Sin Docker: el entorno local usa el proyecto de Supabase de desarrollo en la nube. |
 | v5.2 | Fase 2: límite diario de 10 sesiones con día en hora de Colombia, Tutor por defecto, voz configurable, instrucciones base comunes en Fase 2, cierre de sesiones abandonadas al crear una nueva, `POST /api/voice/sessions` devuelve también `model`, y `finish` mínimo en Fase 2. |
 | v5.3 | Fase 3: texto y registro del consentimiento de grabación (`recording_consent_at`, `POST /api/me/consent`), título provisional por modo y fecha, borrado automático por retención aplazado a la Fase 5, un único `AudioContext` para captura, reproducción y grabación. |
+| v5.4 | Fase 4: instrucciones específicas por modo, resumen en español con frases y vocabulario en inglés, `title` generado en la misma llamada, resumen también para sesiones interrumpidas con conversación. |
