@@ -55,6 +55,16 @@
 | content | text | Transcripción entregada por Gemini |
 | created_at | timestamptz |  |
 
+#### rate_limits
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| key | text | `user:{user_id}` |
+| window_start | timestamptz | Inicio de la ventana de un minuto; PK (key, window_start) |
+| count | int | Peticiones en la ventana |
+
+Sin políticas RLS: solo la usa el backend a través de `check_rate_limit`.
+
 #### Storage
 
 - Bucket privado `session-audio`, ruta `{user_id}/{session_id}.{ext}`.
@@ -69,6 +79,8 @@ Todas las rutas requieren `Authorization: Bearer <JWT de Supabase>`, salvo los w
 |---|---|---|---|
 | GET | `/api/me` | Autenticado | Perfil, rol, estado y `recording_consent_at`; decide qué pantalla mostrar |
 | POST | `/api/me/consent` | approved | Registra la aceptación de la grabación (SPEC-006 §7) |
+| DELETE | `/api/me` | Autenticado (no admin) | Body `{ confirm: "ELIMINAR" }`. Elimina la cuenta y todos sus datos (SPEC-006 §7) |
+| GET | `/api/cron/retention` | `CRON_SECRET` (Vercel Cron) | Borra audios de más de `AUDIO_RETENTION_DAYS` días y contadores viejos de `rate_limits` |
 | POST | `/api/voice/sessions` | approved | Body `{ mode }`. Valida límites, crea la sesión y devuelve `sessionId`, token efímero, `expiresAt`, `maxDurationSec`, `mode` y `model` |
 | POST | `/api/chat/sessions/:id/messages` | Dueño | Body `{ turns: [{ turn_index, sender, content }] }`. Guarda turnos de la transcripción |
 | POST | `/api/chat/sessions/:id/audio-upload-url` | Dueño | Devuelve una URL firmada para subir el audio a Storage |

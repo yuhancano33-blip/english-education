@@ -26,8 +26,10 @@
 | `GEMINI_VOICE` | Backend | Voz elegida para el agente |
 | `MAX_SESSION_SECONDS` | Backend | 420 |
 | `DAILY_SESSION_LIMIT` | Backend | 10 |
-| `ALLOWED_ORIGINS` | Backend | Dominios aceptados por CORS |
-| `RATE_LIMIT_URL`, `RATE_LIMIT_TOKEN` | Backend | Almacén compartido para límites de peticiones |
+| `ALLOWED_ORIGINS` | Backend | Dominios aceptados además del propio, separados por comas (admite `*` en el subdominio) |
+| `RATE_LIMIT_PER_MINUTE` | Backend | 60; peticiones por minuto y usuario |
+| `AUDIO_RETENTION_DAYS` | Backend | 90; días que se conserva el audio |
+| `CRON_SECRET` | Backend | Secreto que Vercel envía a los cron jobs |
 | `RESEND_API_KEY` | Backend | Envío de emails a los administradores |
 | `EMAIL_FROM` | Backend | Remitente de los emails (dominio verificado en Resend) |
 | `ACCESS_WEBHOOK_SECRET` | Backend | Secreto compartido con el trigger de la base de datos (debe coincidir con el guardado en Supabase Vault) |
