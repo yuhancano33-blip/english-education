@@ -1,4 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/chat/sessions/[id]/finish.ts": { "maxDuration": 60 },
+    "api/chat/sessions/[id]/summary.ts": { "maxDuration": 60 }
+  },
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
 }

@@ -9,10 +9,11 @@ import {
   getOwnedSession,
   sessionIdFrom,
 } from '../../../_lib/sessions.js'
+import { summarizeSession } from '../../../_lib/summary.js'
 import { supabaseAdmin } from '../../../_lib/supabase-admin.js'
 
 // audio_path/audio_mime son opcionales: si la subida falló, la sesión se
-// guarda sin audio (SPEC-002 §5). El resumen se añade en la Fase 4.
+// guarda sin audio (SPEC-002 §5).
 const bodySchema = z
   .object({
     duration_seconds: z.number().int().min(0).max(MAX_SESSION_SECONDS),
@@ -70,11 +71,28 @@ export default route({
     // Otra petición la cerró entre la lectura y la escritura
     if (!updated) throw new HttpError(409, 'already_finished', 'La sesión ya estaba cerrada')
 
+    // Resumen (SPEC-002 §7). Si falla, la sesión queda cerrada sin resumen y
+    // se puede reintentar con POST /api/chat/sessions/:id/summary
+    let summaryStatus: 'generated' | 'empty' | 'failed' = 'failed'
+    try {
+      summaryStatus = (await summarizeSession(session)).status
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          event: 'summary_failed',
+          sessionId: session.id,
+          message: err instanceof Error ? err.message : String(err),
+        }),
+      )
+    }
+
     res.status(200).json({
       id: updated.id,
       status: updated.status,
       duration_seconds: updated.duration_seconds,
       has_audio: !!updated.audio_path,
+      summary_status: summaryStatus,
     })
   },
 })
