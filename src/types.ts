@@ -32,8 +32,17 @@ export interface SessionSummary {
   duration_seconds: number | null
   has_audio: boolean
   audio_mime: string | null
-  summary: unknown
+  summary: SessionSummaryData | null
   created_at: string
+}
+
+/** Resumen de una sesión (SPEC-002 §7). */
+export interface SessionSummaryData {
+  title: string
+  summary: string
+  corrections: { original: string; corrected: string; explanation: string }[]
+  vocabulary: { term: string; meaning: string; example: string }[]
+  tips: string[]
 }
 
 export interface SessionTurn {

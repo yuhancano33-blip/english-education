@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import SessionSummaryCards from '@/components/SessionSummaryCards.vue'
 import { api, ApiError } from '@/lib/api'
 import { formatDuration, MODE_LABELS, sessionTitle } from '@/lib/sessionFormat'
-import type { SessionSummary, SessionTurn } from '@/types'
+import { useHistoryStore } from '@/stores/history'
+import type { SessionSummary, SessionSummaryData, SessionTurn } from '@/types'
 
-/** Detalle de una sesión: audio y transcripción (SPEC-003 §5). El resumen llega en la Fase 4. */
+/** Detalle de una sesión: audio, resumen y transcripción (SPEC-003 §5). */
 const route = useRoute()
+const history = useHistoryStore()
 
 const session = ref<SessionSummary | null>(null)
 const turns = ref<SessionTurn[]>([])
@@ -27,6 +30,7 @@ async function load(id: string) {
   audioUrl.value = null
   audioError.value = null
   renewedUrl = false
+  summaryError.value = null
   try {
     const data = await api<{ session: SessionSummary; turns: SessionTurn[] }>(`/api/chat/sessions/${id}`)
     session.value = data.session
@@ -69,6 +73,30 @@ async function onAudioError() {
   await loadAudioUrl()
   if (audio.value && audioUrl.value) {
     audio.value.currentTime = position
+  }
+}
+
+// Resumen (SPEC-002 §7): si falló al cerrar la sesión, se puede reintentar
+const hasUserTurns = computed(() => turns.value.some((t) => t.sender === 'user'))
+const generating = ref(false)
+const summaryError = ref<string | null>(null)
+
+async function generateSummary() {
+  if (!session.value) return
+  generating.value = true
+  summaryError.value = null
+  try {
+    const data = await api<{ summary: SessionSummaryData; title: string | null }>(
+      `/api/chat/sessions/${session.value.id}/summary`,
+      { method: 'POST' },
+    )
+    session.value.summary = data.summary
+    session.value.title = data.title
+    void history.load()
+  } catch (err) {
+    summaryError.value = err instanceof Error ? err.message : 'No se pudo generar el resumen'
+  } finally {
+    generating.value = false
   }
 }
 
@@ -136,6 +164,16 @@ watch(
           No se pudo subir el audio de esta conversación. La transcripción sí se guardó.
         </p>
         <p v-else class="muted">Esta conversación no tiene audio guardado.</p>
+      </div>
+
+      <SessionSummaryCards v-if="session.summary" :summary="session.summary" />
+      <div v-else-if="hasUserTurns" class="card">
+        <h2 class="section-title">Resumen</h2>
+        <p class="muted">Esta conversación todavía no tiene resumen.</p>
+        <p v-if="summaryError" class="alert alert-error" role="alert">{{ summaryError }}</p>
+        <button type="button" class="btn btn-primary" :disabled="generating" @click="generateSummary">
+          {{ generating ? 'Generando…' : 'Generar resumen' }}
+        </button>
       </div>
 
       <div class="card">
