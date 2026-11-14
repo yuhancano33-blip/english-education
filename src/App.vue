@@ -70,6 +70,7 @@ async function signOut() {
           {{ requests.pendingCount }}
         </span>
       </RouterLink>
+      <RouterLink v-if="auth.profile" to="/cuenta" class="nav-link">Mi cuenta</RouterLink>
       <button type="button" class="btn btn-ghost" @click="signOut">Cerrar sesión</button>
     </nav>
   </header>

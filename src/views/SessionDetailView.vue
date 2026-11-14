@@ -163,7 +163,9 @@ watch(
         <p v-else-if="route.query.audio === 'fallo'" class="alert alert-error" role="alert">
           No se pudo subir el audio de esta conversación. La transcripción sí se guardó.
         </p>
-        <p v-else class="muted">Esta conversación no tiene audio guardado.</p>
+        <p v-else class="muted">
+          Esta conversación no tiene audio guardado. Los audios se conservan 90 días.
+        </p>
       </div>
 
       <SessionSummaryCards v-if="session.summary" :summary="session.summary" />

@@ -39,6 +39,14 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresApproved: true },
     },
     {
+      // Accesible en cualquier estado: también un usuario pendiente o
+      // rechazado puede eliminar su cuenta (SPEC-006 §7)
+      path: '/cuenta',
+      name: 'account',
+      component: () => import('@/views/AccountView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/sesiones/:id',
       name: 'session-detail',
       component: () => import('@/views/SessionDetailView.vue'),
@@ -76,6 +84,8 @@ router.beforeEach(async (to) => {
   if (!auth.profile) {
     return to.name === 'profile-error' ? true : { name: 'profile-error' }
   }
+
+  if (to.name === 'account') return true
 
   if (!auth.isApproved) {
     return to.name === 'waiting-room' ? true : { name: 'waiting-room' }
