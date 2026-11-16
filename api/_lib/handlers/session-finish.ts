@@ -10,7 +10,6 @@ import {
   getOwnedSession,
   sessionIdFrom,
 } from '../sessions.js'
-import { summarizeSession } from '../summary.js'
 import { supabaseAdmin } from '../supabase-admin.js'
 
 // audio_path/audio_mime son opcionales: si la subida falló, la sesión se
@@ -71,27 +70,15 @@ export async function finishSession(req: VercelRequest, res: VercelResponse) {
   // Otra petición la cerró entre la lectura y la escritura
   if (!updated) throw new HttpError(409, 'already_finished', 'La sesión ya estaba cerrada')
 
-  // Resumen (SPEC-002 §7). Si falla, la sesión queda cerrada sin resumen y
-  // se puede reintentar con POST /api/chat/sessions/:id?action=summary
-  let summaryStatus: 'generated' | 'empty' | 'failed' = 'failed'
-  try {
-    summaryStatus = (await summarizeSession(session)).status
-  } catch (err) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        event: 'summary_failed',
-        sessionId: session.id,
-        message: err instanceof Error ? err.message : String(err),
-      }),
-    )
-  }
-
+  // El resumen NO se genera aquí: Gemini puede tardar más que el tiempo de la
+  // función, y un único intento dentro del cierre dejaba sesiones sin resumen.
+  // El cliente lo pide después con POST ?action=summary, con reintentos
+  // (SPEC-002 §7).
   res.status(200).json({
     id: updated.id,
     status: updated.status,
     duration_seconds: updated.duration_seconds,
     has_audio: !!updated.audio_path,
-    summary_status: summaryStatus,
+    summary_status: 'pending',
   })
 }

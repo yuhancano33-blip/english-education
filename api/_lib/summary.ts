@@ -3,6 +3,9 @@ import { z } from 'zod'
 import type { SessionMode } from './instructions.js'
 import { supabaseAdmin } from './supabase-admin.js'
 
+/** Tiempo máximo de una llamada al modelo de texto. */
+const SUMMARY_TIMEOUT_MS = 50_000
+
 /** Estructura del resumen (SPEC-002 §7). */
 export const summarySchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -110,7 +113,9 @@ export async function generateSummary(mode: SessionMode, turns: TranscriptTurn[]
     .map((t) => `${t.sender === 'user' ? 'USER' : 'AGENT'}: ${t.content.replace(/\s+/g, ' ').trim()}`)
     .join('\n')
 
-  const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 45_000 } })
+  // Cabe en el maxDuration de 60 s de la función; si Gemini va lento, el
+  // cliente reintenta con otra llamada (y otra función)
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: SUMMARY_TIMEOUT_MS } })
   const response = await ai.models.generateContent({
     model,
     contents: `<transcript>\n${transcript}\n</transcript>`,

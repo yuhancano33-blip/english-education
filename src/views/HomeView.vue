@@ -23,7 +23,7 @@ const modes: { value: SessionMode; label: string; hint: string }[] = [
 const savingLabels = {
   transcript: 'Guardando la transcripción…',
   audio: 'Subiendo el audio…',
-  closing: 'Generando el resumen…',
+  closing: 'Guardando la conversación…',
 } as const
 
 // Consentimiento de grabación antes de la primera sesión (SPEC-006 §7)
