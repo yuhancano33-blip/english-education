@@ -7,7 +7,7 @@ import VoiceVisualizer from '@/components/VoiceVisualizer.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useHistoryStore } from '@/stores/history'
 import { useVoiceSessionStore } from '@/stores/voiceSession'
-import type { SessionMode } from '@/types'
+import { SESSION_MODE_LIST } from '@/lib/sessionModes'
 
 /** Interfaz de voz estilo Gemini Live (SPEC-003 §3 y §4). */
 const voice = useVoiceSessionStore()
@@ -15,10 +15,7 @@ const auth = useAuthStore()
 const history = useHistoryStore()
 const router = useRouter()
 
-const modes: { value: SessionMode; label: string; hint: string }[] = [
-  { value: 'tutor', label: 'Tutor de inglés', hint: 'Corrige los errores importantes' },
-  { value: 'free', label: 'Conversación libre', hint: 'Practica la fluidez sin correcciones' },
-]
+const modes = SESSION_MODE_LIST
 
 const savingLabels = {
   transcript: 'Guardando la transcripción…',
@@ -96,7 +93,7 @@ onBeforeUnmount(() => {
         <legend>Modo de conversación</legend>
         <label v-for="m in modes" :key="m.value" class="mode-option" :class="{ active: voice.mode === m.value }">
           <input v-model="voice.mode" type="radio" name="mode" :value="m.value" />
-          <span class="mode-label">{{ m.label }}</span>
+          <span class="mode-label">{{ m.title }}</span>
           <span class="muted">{{ m.hint }}</span>
         </label>
       </fieldset>

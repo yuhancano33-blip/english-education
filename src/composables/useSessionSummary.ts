@@ -1,5 +1,6 @@
 import { computed, ref, type Ref } from 'vue'
 import { api, ApiError } from '@/lib/api'
+import { modeHasSummary } from '@/lib/sessionModes'
 import type { SessionSummary, SessionSummaryData, SessionTurn } from '@/types'
 
 /** Esperas antes de cada intento: 3 intentos en total. */
@@ -41,7 +42,7 @@ export function useSessionSummary(
 
   async function generate() {
     const target = session.value
-    if (!target || generating.value) return
+    if (!target || generating.value || !modeHasSummary(target.mode)) return
     const current = ++run
     generating.value = true
     error.value = null
@@ -78,10 +79,14 @@ export function useSessionSummary(
     }
   }
 
-  /** Genera solo si hace falta: sesión cerrada, sin resumen y con turnos del usuario. */
+  /**
+   * Genera solo si hace falta: modo con resumen (tutor), sesión cerrada, sin
+   * resumen y con turnos del usuario. En conversación libre nunca llama al API.
+   */
   function ensure() {
     const s = session.value
-    if (!s || s.summary || s.status === 'active' || !hasUserTurns.value) return
+    if (!s || !modeHasSummary(s.mode)) return
+    if (s.summary || s.status === 'active' || !hasUserTurns.value) return
     void generate()
   }
 

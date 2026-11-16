@@ -13,13 +13,13 @@ El diseño será estrictamente minimalista, reduciendo la carga cognitiva y cent
 | Login / Registro | Email y contraseña (Google OAuth fuera del MVP) |
 | Sala de espera | Para usuarios `pending` o `rejected` (SPEC-004) |
 | Principal (voz) | Interfaz de conversación con el sidebar a la izquierda |
-| Detalle de sesión | Transcripción, reproductor de audio y resumen de una sesión anterior |
+| Detalle de sesión | Transcripción y reproductor de audio de una sesión anterior; en modo Tutor, también el resumen |
 | Panel de administración | Solo para admins: solicitudes de acceso pendientes y resueltas |
 
 ## 2. Sidebar (Estilo Gemini)
 
 - Barra lateral colapsable con el historial de sesiones ordenadas por fecha, agrupadas en Hoy, Últimos 7 días y Anteriores.
-- Cada elemento muestra el título (generado a partir del resumen), el modo (Libre o Tutor) y la duración.
+- Cada elemento muestra el título (en Tutor, generado a partir del resumen; en Libre, modo y fecha), el modo (Libre o Tutor) y la duración.
 - Opciones por sesión: renombrar y eliminar (con confirmación, ya que borra también el audio).
 - Botón "Nueva conversación" en la parte superior.
 - En móvil, el sidebar se convierte en un panel superpuesto que se abre con un botón de menú.
@@ -31,7 +31,7 @@ El diseño será estrictamente minimalista, reduciendo la carga cognitiva y cent
 - **Temporizador** visible con cuenta regresiva desde 7:00; cambia de color en el último minuto.
 - **Transcripción en vivo** bajo la animación, que puede ocultarse.
 - **Controles:** silenciar micrófono y finalizar sesión.
-- **Al terminar:** pantalla de "Guardando…" y luego la vista de detalle con el resumen.
+- **Al terminar:** pantalla de "Guardando…" y luego la vista de detalle; en modo Tutor, el resumen se genera ahí mismo ("Generando el resumen y las correcciones…").
 
 ## 4. Estados de la Interfaz de Voz
 
@@ -41,15 +41,15 @@ El diseño será estrictamente minimalista, reduciendo la carga cognitiva y cent
 | Conectando | Indicador de carga breve | Conexión lista → En conversación; fallo → Error |
 | En conversación | Animación reactiva, temporizador y transcripción | Silenciar → Silenciado; fin → Guardando |
 | Silenciado | Animación atenuada e icono de micrófono tachado | Reactivar → En conversación |
-| Guardando | Progreso de subida del audio y generación del resumen | Listo → Detalle de sesión |
+| Guardando | Progreso del guardado de la transcripción y de la subida del audio | Listo → Detalle de sesión |
 | Error | Mensaje claro y acción sugerida | Reintentar → Inactivo |
 
 ## 5. Detalle de Sesión
 
 - **Reproductor de audio** con barra de progreso y velocidad de reproducción (0,75x, 1x, 1,25x).
 - **Transcripción** como chat, diferenciando usuario y agente.
-- **Resumen** en tarjetas: temas hablados, correcciones (frase original → corregida, con explicación), vocabulario nuevo y consejos.
-- Si el resumen falló, botón para generarlo de nuevo.
+- **Resumen** (solo modo Tutor) en tarjetas: temas hablados, correcciones (frase original → corregida, con explicación), vocabulario nuevo y consejos. Se genera automáticamente al abrir la sesión, con reintentos.
+- Si el resumen falló tras los reintentos, botón "Reintentar". La conversación libre no muestra resumen, correcciones ni botón para generarlo.
 
 ## 6. Sala de Espera y Panel de Administración
 

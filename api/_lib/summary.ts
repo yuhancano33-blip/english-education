@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { z } from 'zod'
 import type { SessionMode } from './instructions.js'
+import { MODE_FEATURES } from './modes.js'
 import { supabaseAdmin } from './supabase-admin.js'
 
 /** Tiempo máximo de una llamada al modelo de texto. */
@@ -78,17 +79,11 @@ const responseJsonSchema = {
   required: ['title', 'summary', 'corrections', 'vocabulary', 'tips'],
 }
 
-const MODE_DETAIL: Record<SessionMode, string> = {
-  tutor:
-    'The session was in TUTOR mode: be thorough with corrections. Include every relevant grammar, vocabulary or pronunciation-related mistake found in the user turns (up to 10), each with a clear explanation.',
-  free:
-    'The session was in FREE CONVERSATION mode: focus on the topics and useful vocabulary. Include only the most important mistakes (up to 5); it is fine to return an empty corrections list if there were none.',
-}
-
-function systemInstruction(mode: SessionMode): string {
+/** Instrucciones del resumen. Solo existen para el modo tutor (ver modes.ts). */
+function systemInstruction(): string {
   return [
-    'You analyse the transcript of a voice conversation between a Spanish-speaking English learner (USER) and an AI conversation partner (AGENT), and produce a learning summary as JSON.',
-    MODE_DETAIL[mode],
+    'You analyse the transcript of a voice conversation between a Spanish-speaking English learner (USER) and an AI English tutor (AGENT), and produce a learning summary as JSON.',
+    'Be thorough with corrections: include every relevant grammar, vocabulary or pronunciation-related mistake found in the user turns (up to 10), each with a clear explanation.',
     'Language rules: "title", "summary", "explanation", "meaning" and "tips" must be written in Spanish. "original", "corrected", "term" and "example" must be in English.',
     'Only correct sentences actually said by the USER; never correct the AGENT. Quote "original" as the user said it.',
     'The transcript comes from automatic speech recognition: ignore obvious transcription noise and do not treat it as a user mistake.',
@@ -104,7 +99,7 @@ export interface TranscriptTurn {
 }
 
 /** Llama al modelo de texto y valida la respuesta. Lanza si falla. */
-export async function generateSummary(mode: SessionMode, turns: TranscriptTurn[]): Promise<SessionSummary> {
+export async function generateSummary(turns: TranscriptTurn[]): Promise<SessionSummary> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) throw new Error('Falta GEMINI_API_KEY')
   const model = process.env.GEMINI_TEXT_MODEL || 'gemini-3.5-flash'
@@ -120,7 +115,7 @@ export async function generateSummary(mode: SessionMode, turns: TranscriptTurn[]
     model,
     contents: `<transcript>\n${transcript}\n</transcript>`,
     config: {
-      systemInstruction: systemInstruction(mode),
+      systemInstruction: systemInstruction(),
       responseMimeType: 'application/json',
       responseJsonSchema,
       temperature: 0.3,
@@ -138,16 +133,21 @@ export async function generateSummary(mode: SessionMode, turns: TranscriptTurn[]
 export type SummaryOutcome =
   | { status: 'generated'; summary: SessionSummary; title: string | null }
   | { status: 'empty' }
+  | { status: 'not_applicable' }
 
 /**
- * Genera y guarda el resumen de una sesión. Sin turnos del usuario no hay
- * resumen. El título solo se aplica si el usuario no renombró la sesión.
+ * Genera y guarda el resumen de una sesión de un modo con resumen (tutor).
+ * Sin turnos del usuario no hay resumen. El título solo se aplica si el
+ * usuario no renombró la sesión.
  */
 export async function summarizeSession(session: {
   id: string
   mode: SessionMode
   title: string | null
 }): Promise<SummaryOutcome> {
+  // Los modos sin resumen (conversación libre) nunca llaman al modelo de texto
+  if (!MODE_FEATURES[session.mode].summary) return { status: 'not_applicable' }
+
   const db = supabaseAdmin()
   const { data: turns, error } = await db
     .from('messages')
@@ -158,7 +158,7 @@ export async function summarizeSession(session: {
   if (error) throw error
   if (!turns.some((t) => t.sender === 'user')) return { status: 'empty' }
 
-  const summary = await generateSummary(session.mode, turns)
+  const summary = await generateSummary(turns)
 
   const { error: saveError } = await db
     .from('chat_sessions')

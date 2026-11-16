@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireApproved } from '../auth.js'
 import { MAX_SESSION_SECONDS } from '../config.js'
 import { HttpError, parse } from '../http.js'
+import { MODE_FEATURES } from '../modes.js'
 import {
   AUDIO_BUCKET,
   audioMimeSchema,
@@ -72,13 +73,13 @@ export async function finishSession(req: VercelRequest, res: VercelResponse) {
 
   // El resumen NO se genera aquí: Gemini puede tardar más que el tiempo de la
   // función, y un único intento dentro del cierre dejaba sesiones sin resumen.
-  // El cliente lo pide después con POST ?action=summary, con reintentos
-  // (SPEC-002 §7).
+  // En los modos con resumen (tutor) el cliente lo pide después con
+  // POST ?action=summary, con reintentos (SPEC-002 §7).
   res.status(200).json({
     id: updated.id,
     status: updated.status,
     duration_seconds: updated.duration_seconds,
     has_audio: !!updated.audio_path,
-    summary_status: 'pending',
+    summary_status: MODE_FEATURES[session.mode].summary ? 'pending' : 'not_applicable',
   })
 }
