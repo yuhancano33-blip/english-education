@@ -17,7 +17,7 @@ interface UploadTarget {
 export async function uploadRecording(sessionId: string, recording: Recording): Promise<string | null> {
   for (let attempt = 1; attempt <= UPLOAD_ATTEMPTS; attempt++) {
     try {
-      const target = await api<UploadTarget>(`/api/chat/sessions/${sessionId}/audio-upload-url`, {
+      const target = await api<UploadTarget>(`/api/chat/sessions/${sessionId}?action=audio-upload-url`, {
         method: 'POST',
         body: JSON.stringify({ mime: recording.mime }),
       })
@@ -66,7 +66,7 @@ export class TranscriptSync {
 
     for (let i = 0; i < pending.length; i += 50) {
       const batch = pending.slice(i, i + 50)
-      await api(`/api/chat/sessions/${this.sessionId}/messages`, {
+      await api(`/api/chat/sessions/${this.sessionId}?action=messages`, {
         method: 'POST',
         body: JSON.stringify({ turns: batch }),
       })

@@ -54,7 +54,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** Acepta la grabación de conversaciones (SPEC-006 §7). */
   async function acceptRecording() {
-    profile.value = await api<Profile>('/api/me/consent', { method: 'POST' })
+    profile.value = await api<Profile>('/api/me?action=consent', { method: 'POST' })
   }
 
   async function signIn(email: string, password: string) {

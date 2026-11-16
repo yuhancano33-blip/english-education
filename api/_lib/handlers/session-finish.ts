@@ -1,0 +1,97 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { z } from 'zod'
+import { requireApproved } from '../auth.js'
+import { MAX_SESSION_SECONDS } from '../config.js'
+import { HttpError, parse } from '../http.js'
+import {
+  AUDIO_BUCKET,
+  audioMimeSchema,
+  audioPathFor,
+  getOwnedSession,
+  sessionIdFrom,
+} from '../sessions.js'
+import { summarizeSession } from '../summary.js'
+import { supabaseAdmin } from '../supabase-admin.js'
+
+// audio_path/audio_mime son opcionales: si la subida falló, la sesión se
+// guarda sin audio (SPEC-002 §5).
+const bodySchema = z
+  .object({
+    duration_seconds: z.number().int().min(0).max(MAX_SESSION_SECONDS),
+    status: z.enum(['completed', 'interrupted']),
+    audio_path: z.string().min(1).max(200).optional(),
+    audio_mime: audioMimeSchema.optional(),
+  })
+  .refine((b) => !!b.audio_path === !!b.audio_mime, {
+    message: 'audio_path y audio_mime van juntos',
+  })
+
+/** POST /api/chat/sessions/:id?action=finish — cierra una sesión activa del usuario. */
+export async function finishSession(req: VercelRequest, res: VercelResponse) {
+  const user = await requireApproved(req)
+  const session = await getOwnedSession(sessionIdFrom(req.query), user.id)
+  const body = parse(bodySchema, req.body)
+  const db = supabaseAdmin()
+
+  if (session.status !== 'active') {
+    throw new HttpError(409, 'already_finished', 'La sesión ya estaba cerrada')
+  }
+
+  let audio: { audio_path: string; audio_mime: string } | null = null
+  if (body.audio_path && body.audio_mime) {
+    // Solo se acepta la ruta propia de esta sesión, y el archivo debe existir
+    const expected = audioPathFor(user.id, session.id, body.audio_mime)
+    if (body.audio_path !== expected) {
+      throw new HttpError(400, 'invalid_audio_path', 'La ruta del audio no corresponde a esta sesión')
+    }
+    const [folder, file] = expected.split('/')
+    const { data: found, error: listError } = await db.storage
+      .from(AUDIO_BUCKET)
+      .list(folder, { search: file, limit: 1 })
+    if (listError) throw listError
+    if (!found?.some((f) => f.name === file)) {
+      throw new HttpError(400, 'audio_not_uploaded', 'El audio no se ha subido')
+    }
+    audio = { audio_path: expected, audio_mime: body.audio_mime }
+  }
+
+  const { data: updated, error } = await db
+    .from('chat_sessions')
+    .update({
+      status: body.status,
+      duration_seconds: body.duration_seconds,
+      ended_at: new Date().toISOString(),
+      ...(audio ?? {}),
+    })
+    .eq('id', session.id)
+    .eq('status', 'active')
+    .select('id, status, duration_seconds, audio_path')
+    .maybeSingle()
+  if (error) throw error
+  // Otra petición la cerró entre la lectura y la escritura
+  if (!updated) throw new HttpError(409, 'already_finished', 'La sesión ya estaba cerrada')
+
+  // Resumen (SPEC-002 §7). Si falla, la sesión queda cerrada sin resumen y
+  // se puede reintentar con POST /api/chat/sessions/:id?action=summary
+  let summaryStatus: 'generated' | 'empty' | 'failed' = 'failed'
+  try {
+    summaryStatus = (await summarizeSession(session)).status
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        event: 'summary_failed',
+        sessionId: session.id,
+        message: err instanceof Error ? err.message : String(err),
+      }),
+    )
+  }
+
+  res.status(200).json({
+    id: updated.id,
+    status: updated.status,
+    duration_seconds: updated.duration_seconds,
+    has_audio: !!updated.audio_path,
+    summary_status: summaryStatus,
+  })
+}

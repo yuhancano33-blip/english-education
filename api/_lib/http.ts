@@ -65,7 +65,24 @@ function originAllowed(req: VercelRequest): boolean {
   })
 }
 
-type MethodHandler = (req: VercelRequest, res: VercelResponse) => unknown | Promise<unknown>
+export type MethodHandler = (req: VercelRequest, res: VercelResponse) => unknown | Promise<unknown>
+
+/**
+ * Reparte un método HTTP según `?action=`. La clave '' es la petición sin
+ * acción. Una acción desconocida responde 404.
+ *
+ * Permite agrupar varios endpoints en una sola función serverless (el plan
+ * Hobby de Vercel admite como máximo 12 por despliegue).
+ */
+export function byAction(actions: Record<string, MethodHandler>): MethodHandler {
+  return (req, res) => {
+    const raw = req.query.action
+    const action = typeof raw === 'string' ? raw : ''
+    const handler = Object.hasOwn(actions, action) ? actions[action] : undefined
+    if (!handler) throw new HttpError(404, 'not_found', 'Acción no encontrada')
+    return handler(req, res)
+  }
+}
 
 /**
  * Enruta por método HTTP, rechaza orígenes no permitidos, convierte los

@@ -248,12 +248,12 @@ export const useVoiceSessionStore = defineStore('voiceSession', () => {
       ...(audio ? { audio_path: audio.path, audio_mime: audio.mime } : {}),
     }
     try {
-      await api(`/api/chat/sessions/${sessionId}/finish`, { method: 'POST', body: JSON.stringify(body) })
+      await api(`/api/chat/sessions/${sessionId}?action=finish`, { method: 'POST', body: JSON.stringify(body) })
     } catch {
       if (!audio) return
       // Si el audio no se aceptó, la sesión se cierra igualmente sin él
       try {
-        await api(`/api/chat/sessions/${sessionId}/finish`, {
+        await api(`/api/chat/sessions/${sessionId}?action=finish`, {
           method: 'POST',
           body: JSON.stringify({ duration_seconds: duration, status }),
         })

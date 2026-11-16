@@ -1,8 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/chat/sessions/[id]/finish.ts": { "maxDuration": 60 },
-    "api/chat/sessions/[id]/summary.ts": { "maxDuration": 60 },
+    "api/chat/sessions/[id]/index.ts": { "maxDuration": 60 },
     "api/cron/retention.ts": { "maxDuration": 60 }
   },
   "crons": [{ "path": "/api/cron/retention", "schedule": "0 8 * * *" }],

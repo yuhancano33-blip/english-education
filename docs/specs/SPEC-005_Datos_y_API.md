@@ -73,26 +73,28 @@ Sin políticas RLS: solo la usa el backend a través de `check_rate_limit`.
 
 ## 2. API REST
 
-Todas las rutas requieren `Authorization: Bearer <JWT de Supabase>`, salvo los webhooks internos, que se autentican con un secreto compartido. Los errores usan el formato `{ "error": { "code": "...", "message": "..." } }` con el código HTTP correspondiente (400, 401, 403, 404, 409, 429, 500).
+Todas las rutas requieren `Authorization: Bearer <JWT de Supabase>`, salvo los webhooks internos, que se autentican con un secreto compartido.
+
+Para no superar el máximo de 12 funciones serverless por despliegue del plan Hobby de Vercel, las operaciones de un mismo recurso comparten función y se distinguen con el parámetro `?action=` (7 funciones en total). Una acción desconocida responde 404. La lógica de cada acción vive en `api/_lib/handlers/`. Los errores usan el formato `{ "error": { "code": "...", "message": "..." } }` con el código HTTP correspondiente (400, 401, 403, 404, 409, 429, 500).
 
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
 | GET | `/api/me` | Autenticado | Perfil, rol, estado y `recording_consent_at`; decide qué pantalla mostrar |
-| POST | `/api/me/consent` | approved | Registra la aceptación de la grabación (SPEC-006 §7) |
+| POST | `/api/me?action=consent` | approved | Registra la aceptación de la grabación (SPEC-006 §7) |
 | DELETE | `/api/me` | Autenticado (no admin) | Body `{ confirm: "ELIMINAR" }`. Elimina la cuenta y todos sus datos (SPEC-006 §7) |
 | GET | `/api/cron/retention` | `CRON_SECRET` (Vercel Cron) | Borra audios de más de `AUDIO_RETENTION_DAYS` días y contadores viejos de `rate_limits` |
 | POST | `/api/voice/sessions` | approved | Body `{ mode }`. Valida límites, crea la sesión y devuelve `sessionId`, token efímero, `expiresAt`, `maxDurationSec`, `mode` y `model` |
-| POST | `/api/chat/sessions/:id/messages` | Dueño | Body `{ turns: [{ turn_index, sender, content }] }`. Guarda turnos de la transcripción |
-| POST | `/api/chat/sessions/:id/audio-upload-url` | Dueño | Devuelve una URL firmada para subir el audio a Storage |
-| POST | `/api/chat/sessions/:id/finish` | Dueño | Body `{ duration_seconds, audio_path, audio_mime, status }`. Cierra la sesión y genera el resumen. En la Fase 2 solo acepta `{ duration_seconds, status }`; el audio y el resumen se añaden en las fases 3 y 4 |
-| POST | `/api/chat/sessions/:id/summary` | Dueño | Vuelve a generar el resumen si falló. 409 `empty_transcript` si no hubo conversación; 502 si el modelo falla |
+| POST | `/api/chat/sessions/:id?action=messages` | Dueño | Body `{ turns: [{ turn_index, sender, content }] }`. Guarda turnos de la transcripción |
+| POST | `/api/chat/sessions/:id?action=audio-upload-url` | Dueño | Devuelve una URL firmada para subir el audio a Storage |
+| POST | `/api/chat/sessions/:id?action=finish` | Dueño | Body `{ duration_seconds, audio_path, audio_mime, status }`. Cierra la sesión y genera el resumen. En la Fase 2 solo acepta `{ duration_seconds, status }`; el audio y el resumen se añaden en las fases 3 y 4 |
+| POST | `/api/chat/sessions/:id?action=summary` | Dueño | Vuelve a generar el resumen si falló. 409 `empty_transcript` si no hubo conversación; 502 si el modelo falla |
 | GET | `/api/chat/sessions` | approved | Lista paginada de sesiones para el sidebar (`?limit=` y `?before=<created_at>` como cursor) |
 | GET | `/api/chat/sessions/:id` | Dueño | Detalle: datos de la sesión, turnos y resumen |
-| GET | `/api/chat/sessions/:id/audio` | Dueño | URL firmada de descarga del audio (válida pocos minutos) |
+| GET | `/api/chat/sessions/:id?action=audio` | Dueño | URL firmada de descarga del audio (válida pocos minutos) |
 | PATCH | `/api/chat/sessions/:id` | Dueño | Renombrar |
 | DELETE | `/api/chat/sessions/:id` | Dueño | Elimina sesión, turnos y audio |
 | GET | `/api/admin/access-requests` | admin | Lista de solicitudes, filtrable por estado |
-| POST | `/api/admin/access-requests/:id/resolve` | admin | Body `{ decision: "approve" \| "reject" }` |
+| POST | `/api/admin/access-requests?id=:id&action=resolve` | admin | Body `{ decision: "approve" \| "reject" }` |
 | POST | `/api/webhooks/access-request-created` | Secreto compartido (cabecera `x-webhook-secret`), no JWT | Llamado por la base de datos al crearse una solicitud; envía el email a los admins (SPEC-004) |
 
 #### Respuestas relevantes de POST /api/voice/sessions

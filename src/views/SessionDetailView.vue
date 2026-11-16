@@ -53,7 +53,7 @@ async function load(id: string) {
 async function loadAudioUrl() {
   if (!session.value) return
   try {
-    const data = await api<{ url: string }>(`/api/chat/sessions/${session.value.id}/audio`)
+    const data = await api<{ url: string }>(`/api/chat/sessions/${session.value.id}?action=audio`)
     audioUrl.value = data.url
     audioError.value = null
   } catch {
@@ -87,7 +87,7 @@ async function generateSummary() {
   summaryError.value = null
   try {
     const data = await api<{ summary: SessionSummaryData; title: string | null }>(
-      `/api/chat/sessions/${session.value.id}/summary`,
+      `/api/chat/sessions/${session.value.id}?action=summary`,
       { method: 'POST' },
     )
     session.value.summary = data.summary
