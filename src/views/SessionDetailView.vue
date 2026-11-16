@@ -5,6 +5,7 @@ import SessionSummaryCards from '@/components/SessionSummaryCards.vue'
 import { useSessionSummary } from '@/composables/useSessionSummary'
 import { api, ApiError } from '@/lib/api'
 import { formatDuration, MODE_LABELS, sessionTitle } from '@/lib/sessionFormat'
+import { modeHasSummary } from '@/lib/sessionModes'
 import { useHistoryStore } from '@/stores/history'
 import type { SessionSummary, SessionTurn } from '@/types'
 
@@ -149,23 +150,27 @@ watch(
         </p>
       </div>
 
-      <SessionSummaryCards v-if="session.summary" :summary="session.summary" />
-      <div v-else-if="summary.generating.value" class="card center" role="status">
-        <div class="spinner" aria-hidden="true" />
-        <p>Generando el resumen y las correcciones…</p>
-      </div>
-      <div v-else-if="summary.empty.value" class="card">
-        <h2 class="section-title">Resumen</h2>
-        <p class="muted">No hubo conversación suficiente para generar un resumen.</p>
-      </div>
-      <div v-else-if="summary.hasUserTurns.value" class="card">
-        <h2 class="section-title">Resumen</h2>
-        <p v-if="summary.error.value" class="alert alert-error" role="alert">{{ summary.error.value }}</p>
-        <p v-else class="muted">Esta conversación todavía no tiene resumen.</p>
-        <button type="button" class="btn btn-primary" @click="summary.generate()">
-          {{ summary.error.value ? 'Reintentar' : 'Generar resumen' }}
-        </button>
-      </div>
+      <!-- Resumen y correcciones: solo en modos con resumen (Tutor). La
+           conversación libre no tiene resumen ni botón para generarlo. -->
+      <template v-if="modeHasSummary(session.mode)">
+        <SessionSummaryCards v-if="session.summary" :summary="session.summary" />
+        <div v-else-if="summary.generating.value" class="card center" role="status">
+          <div class="spinner" aria-hidden="true" />
+          <p>Generando el resumen y las correcciones…</p>
+        </div>
+        <div v-else-if="summary.empty.value" class="card">
+          <h2 class="section-title">Resumen</h2>
+          <p class="muted">No hubo conversación suficiente para generar un resumen.</p>
+        </div>
+        <div v-else-if="summary.hasUserTurns.value" class="card">
+          <h2 class="section-title">Resumen</h2>
+          <p v-if="summary.error.value" class="alert alert-error" role="alert">{{ summary.error.value }}</p>
+          <p v-else class="muted">Esta conversación todavía no tiene resumen.</p>
+          <button type="button" class="btn btn-primary" @click="summary.generate()">
+            {{ summary.error.value ? 'Reintentar' : 'Generar resumen' }}
+          </button>
+        </div>
+      </template>
 
       <div class="card">
         <h2 class="section-title">Transcripción</h2>
