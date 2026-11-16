@@ -1,22 +1,65 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
 import LiveTranscript from '@/components/LiveTranscript.vue'
 import SessionTimer from '@/components/SessionTimer.vue'
 import VoiceVisualizer from '@/components/VoiceVisualizer.vue'
+import { useAuthStore } from '@/stores/auth'
+import { useHistoryStore } from '@/stores/history'
 import { useVoiceSessionStore } from '@/stores/voiceSession'
 import type { SessionMode } from '@/types'
 
 /** Interfaz de voz estilo Gemini Live (SPEC-003 §3 y §4). */
 const voice = useVoiceSessionStore()
+const auth = useAuthStore()
+const history = useHistoryStore()
+const router = useRouter()
 
 const modes: { value: SessionMode; label: string; hint: string }[] = [
   { value: 'tutor', label: 'Tutor de inglés', hint: 'Corrige los errores importantes' },
   { value: 'free', label: 'Conversación libre', hint: 'Practica la fluidez sin correcciones' },
 ]
 
-function formatDuration(seconds: number) {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+const savingLabels = {
+  transcript: 'Guardando la transcripción…',
+  audio: 'Subiendo el audio…',
+  closing: 'Generando el resumen…',
+} as const
+
+// Consentimiento de grabación antes de la primera sesión (SPEC-006 §7)
+const needsConsent = computed(() => !!auth.profile && !auth.profile.recording_consent_at)
+const accepting = ref(false)
+const consentError = ref<string | null>(null)
+
+async function acceptConsent() {
+  accepting.value = true
+  consentError.value = null
+  try {
+    await auth.acceptRecording()
+  } catch (err) {
+    consentError.value = err instanceof Error ? err.message : 'No se pudo guardar tu respuesta'
+  } finally {
+    accepting.value = false
+  }
 }
+
+// Al terminar de guardar: actualizar el historial y abrir el detalle (SPEC-003 §3)
+watch(
+  () => voice.state,
+  (state, previous) => {
+    if (previous !== 'saving' || !voice.lastResult) return
+    void history.load()
+    if (state === 'idle') {
+      const { sessionId, audioSaved } = voice.lastResult
+      void router.push({
+        name: 'session-detail',
+        params: { id: sessionId },
+        // Avisar si la subida del audio falló (SPEC-002 §5)
+        query: audioSaved ? {} : { audio: 'fallo' },
+      })
+    }
+  },
+)
 
 // Si el usuario cierra la pestaña o sale de la pantalla, la sesión queda interrumpida
 function onPageHide() {
@@ -33,8 +76,22 @@ onBeforeUnmount(() => {
   <section class="voice" aria-labelledby="voice-title">
     <h1 id="voice-title" class="visually-hidden">Conversación por voz</h1>
 
+    <!-- Consentimiento de grabación (SPEC-006 §7) -->
+    <div v-if="needsConsent" class="card consent" role="region" aria-labelledby="consent-title">
+      <h2 id="consent-title">Antes de empezar</h2>
+      <p>
+        Tus conversaciones se graban (audio y transcripción) y se guardan en tu historial para que
+        puedas volver a escucharlas. Solo tú puedes acceder a ellas y puedes borrarlas cuando quieras.
+        El audio se procesa con Google Gemini para generar las respuestas.
+      </p>
+      <p v-if="consentError" class="alert alert-error" role="alert">{{ consentError }}</p>
+      <button type="button" class="btn btn-primary" :disabled="accepting" @click="acceptConsent">
+        {{ accepting ? 'Guardando…' : 'Acepto' }}
+      </button>
+    </div>
+
     <!-- Inactivo / Error -->
-    <template v-if="voice.state === 'idle' || voice.state === 'error'">
+    <template v-else-if="voice.state === 'idle' || voice.state === 'error'">
       <fieldset class="mode-picker">
         <legend>Modo de conversación</legend>
         <label v-for="m in modes" :key="m.value" class="mode-option" :class="{ active: voice.mode === m.value }">
@@ -46,13 +103,13 @@ onBeforeUnmount(() => {
 
       <div v-if="voice.error" class="alert alert-error" role="alert">
         <p>{{ voice.error.message }}</p>
+        <p v-if="voice.lastResult">
+          <RouterLink :to="{ name: 'session-detail', params: { id: voice.lastResult.sessionId } }">
+            Ver la conversación guardada
+          </RouterLink>
+        </p>
         <button type="button" class="btn btn-ghost" @click="voice.dismissError()">Reintentar</button>
       </div>
-
-      <p v-else-if="voice.lastResult" class="alert alert-info" role="status">
-        Sesión {{ voice.lastResult.status === 'completed' ? 'finalizada' : 'interrumpida' }}
-        ({{ formatDuration(voice.lastResult.duration) }}).
-      </p>
 
       <button
         type="button"
@@ -68,7 +125,10 @@ onBeforeUnmount(() => {
           />
         </svg>
       </button>
-      <p class="muted center">Pulsa el micrófono para empezar. Cada sesión dura como máximo 7 minutos.</p>
+      <p class="muted center">
+        Pulsa el micrófono para empezar. Cada sesión dura como máximo 7 minutos.<br />
+        La conversación se graba y se guarda en tu historial.
+      </p>
     </template>
 
     <!-- Conectando -->
@@ -80,6 +140,9 @@ onBeforeUnmount(() => {
     <!-- En conversación / Silenciado -->
     <template v-else-if="voice.inSession">
       <SessionTimer :remaining="voice.remaining" />
+      <p class="recording-indicator" role="status">
+        <span class="recording-dot" aria-hidden="true" /> Grabando
+      </p>
       <p v-if="voice.warning" class="alert alert-info center" role="status">Queda menos de 1 minuto</p>
 
       <VoiceVisualizer
@@ -108,7 +171,7 @@ onBeforeUnmount(() => {
     <!-- Guardando -->
     <div v-else-if="voice.state === 'saving'" class="center" role="status">
       <div class="spinner" aria-hidden="true" />
-      <p>Guardando…</p>
+      <p>{{ savingLabels[voice.savingStep] }}</p>
     </div>
   </section>
 </template>

@@ -7,17 +7,18 @@ const CHUNK_MS = 30
  * Captura del micrófono (SPEC-002 §3): getUserMedia con cancelación de eco y
  * supresión de ruido + AudioWorklet que entrega PCM 16 kHz en fragmentos.
  *
- * El AudioContext se crea en el constructor para poder hacerlo dentro del
- * gesto del usuario (clic), antes de cualquier `await`.
+ * Usa el AudioContext compartido de la sesión, para que el mismo audio pueda
+ * mezclarse con la voz del agente en la grabación.
  */
 export class Microphone {
-  readonly context = new AudioContext()
   readonly analyser: AnalyserNode
   stream: MediaStream | null = null
+  /** Nodo de entrada, para conectarlo también a la grabación */
+  source: MediaStreamAudioSourceNode | null = null
   private node: AudioWorkletNode | null = null
 
-  constructor() {
-    this.analyser = this.context.createAnalyser()
+  constructor(private readonly context: AudioContext) {
+    this.analyser = context.createAnalyser()
     this.analyser.fftSize = 512
   }
 
@@ -32,17 +33,19 @@ export class Microphone {
     })
     await this.context.audioWorklet.addModule(workletUrl)
 
-    const source = this.context.createMediaStreamSource(this.stream)
+    this.source = this.context.createMediaStreamSource(this.stream)
     this.node = new AudioWorkletNode(this.context, 'pcm-capture', {
       processorOptions: { targetRate: TARGET_RATE, chunkMs: CHUNK_MS },
     })
     this.node.port.onmessage = (event: MessageEvent<ArrayBuffer>) => onChunk(event.data)
 
-    source.connect(this.analyser)
-    source.connect(this.node)
-    // El worklet no produce sonido; se conecta al destino para que el grafo lo procese
-    this.node.connect(this.context.destination)
-    await this.context.resume()
+    this.source.connect(this.analyser)
+    this.source.connect(this.node)
+    // El worklet no produce sonido; un nodo silenciado lo mantiene en el grafo
+    // sin devolver la voz del usuario por los altavoces
+    const sink = this.context.createGain()
+    sink.gain.value = 0
+    this.node.connect(sink).connect(this.context.destination)
   }
 
   /** Silenciar: deja de enviar audio sin cerrar la conexión. */
@@ -51,10 +54,12 @@ export class Microphone {
     this.stream?.getAudioTracks().forEach((track) => (track.enabled = enabled))
   }
 
-  async stop() {
+  stop() {
     this.node?.port.close()
+    this.node?.disconnect()
+    this.source?.disconnect()
     this.stream?.getTracks().forEach((track) => track.stop())
     this.stream = null
-    if (this.context.state !== 'closed') await this.context.close()
+    this.source = null
   }
 }

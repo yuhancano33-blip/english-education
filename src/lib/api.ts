@@ -12,18 +12,42 @@ export class ApiError extends Error {
   }
 }
 
-/** Llama al backend con el JWT de Supabase y normaliza los errores (SPEC-005 §2). */
+/**
+ * Llama al backend con el JWT de Supabase y normaliza los errores (SPEC-005 §2).
+ * Si el backend responde 401 (p. ej. token caducado o reloj del equipo
+ * desfasado), renueva la sesión una vez y reintenta.
+ */
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
+  let response = await send(path, init, data.session?.access_token)
 
-  const headers = new Headers(init.headers)
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-  if (init.body) headers.set('Content-Type', 'application/json')
+  if (response.status === 401 && data.session) {
+    const { data: refreshed, error } = await supabase.auth.refreshSession()
+    if (!error && refreshed.session) {
+      response = await send(path, init, refreshed.session.access_token)
+    }
+  }
 
-  const response = await fetch(path, { ...init, headers })
+  // 204: éxito sin cuerpo (p. ej. DELETE)
+  if (response.status === 204) return undefined as T
+
+  // Si la respuesta no es JSON, la API no está detrás de esta URL (p. ej. un
+  // servidor de desarrollo sin el plugin de dev/api-dev-server.ts, que sirve
+  // api/*.ts como código fuente con 200). Nunca se trata como respuesta válida
+  // ni como estado pending.
+  const isJson = response.headers.get('content-type')?.includes('application/json') ?? false
+  if (!isJson) {
+    throw new ApiError(
+      response.status,
+      'api_unavailable',
+      import.meta.env.DEV
+        ? 'La API (/api) no está disponible. Detén el servidor y vuelve a arrancarlo con `npm run dev`; revisa la terminal por si hay errores.'
+        : 'El servidor devolvió una respuesta inesperada. Inténtalo de nuevo más tarde.',
+    )
+  }
+
   const body = await response.json().catch(() => null)
-  if (!response.ok) {
+  if (!response.ok || body === null) {
     throw new ApiError(
       response.status,
       body?.error?.code ?? 'unknown_error',
@@ -32,4 +56,15 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     )
   }
   return body as T
+}
+
+async function send(path: string, init: RequestInit, token: string | undefined): Promise<Response> {
+  const headers = new Headers(init.headers)
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  if (init.body) headers.set('Content-Type', 'application/json')
+  try {
+    return await fetch(path, { ...init, headers })
+  } catch {
+    throw new ApiError(0, 'network_error', 'No se pudo conectar con el servidor. Revisa tu conexión.')
+  }
 }

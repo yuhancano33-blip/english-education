@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { devSkipAccessCheck } from '@/lib/devAccess'
 import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
@@ -26,9 +27,29 @@ export const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/error',
+      name: 'profile-error',
+      component: () => import('@/views/ProfileErrorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/',
       name: 'home',
       component: () => import('@/views/HomeView.vue'),
+      meta: { requiresAuth: true, requiresApproved: true },
+    },
+    {
+      // Accesible en cualquier estado: también un usuario pendiente o
+      // rechazado puede eliminar su cuenta (SPEC-006 §7)
+      path: '/cuenta',
+      name: 'account',
+      component: () => import('@/views/AccountView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/sesiones/:id',
+      name: 'session-detail',
+      component: () => import('@/views/SessionDetailView.vue'),
       meta: { requiresAuth: true, requiresApproved: true },
     },
     {
@@ -50,16 +71,27 @@ router.beforeEach(async (to) => {
     return to.meta.guestOnly ? true : { name: 'login' }
   }
 
-  // Con sesión pero sin perfil (error al cargarlo): la sala de espera muestra el error
-  if (!auth.profile) {
-    return to.name === 'waiting-room' ? true : { name: 'waiting-room' }
+  const accessScreens = ['waiting-room', 'profile-error']
+
+  // Solo desarrollo local: se trata al usuario como aprobado (ver src/lib/devAccess.ts)
+  if (devSkipAccessCheck) {
+    if (to.meta.guestOnly || accessScreens.includes(String(to.name))) return { name: 'home' }
+    if (to.meta.requiresAdmin && !auth.isAdmin) return { name: 'home' }
+    return true
   }
+
+  // Sin perfil = no se pudo cargar (/api/me falló). Es un error, nunca "pending".
+  if (!auth.profile) {
+    return to.name === 'profile-error' ? true : { name: 'profile-error' }
+  }
+
+  if (to.name === 'account') return true
 
   if (!auth.isApproved) {
     return to.name === 'waiting-room' ? true : { name: 'waiting-room' }
   }
 
-  if (to.meta.guestOnly || to.name === 'waiting-room') return { name: 'home' }
+  if (to.meta.guestOnly || accessScreens.includes(String(to.name))) return { name: 'home' }
   if (to.meta.requiresAdmin && !auth.isAdmin) return { name: 'home' }
   return true
 })

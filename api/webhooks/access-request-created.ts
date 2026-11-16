@@ -1,21 +1,14 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
 import type { VercelRequest } from '@vercel/node'
 import { z } from 'zod'
 import { sendEmail } from '../_lib/email.js'
 import { HttpError, parse, route } from '../_lib/http.js'
+import { secretMatches } from '../_lib/secrets.js'
 import { supabaseAdmin } from '../_lib/supabase-admin.js'
 
 const bodySchema = z.object({ request_id: z.string().uuid() })
 
-function digest(value: string) {
-  return createHash('sha256').update(value).digest()
-}
-
-/** Compara el secreto compartido en tiempo constante. */
 function verifySecret(req: VercelRequest) {
-  const expected = process.env.ACCESS_WEBHOOK_SECRET
-  const received = req.headers['x-webhook-secret']
-  if (!expected || typeof received !== 'string' || !timingSafeEqual(digest(received), digest(expected))) {
+  if (!secretMatches(req.headers['x-webhook-secret'], process.env.ACCESS_WEBHOOK_SECRET)) {
     throw new HttpError(401, 'unauthorized', 'Secreto de webhook inválido')
   }
 }

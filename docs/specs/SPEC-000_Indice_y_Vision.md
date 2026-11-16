@@ -1,7 +1,7 @@
 # SPEC-000 · Índice y Visión General
 
 **Proyecto:** Agente de Voz Bilingüe (Inglés/Español)  
-**Documento:** SPEC-000 · **Versión:** 5.2 · **Fecha:** 28 de septiembre de 2026 · **Estado:** Borrador para revisión  
+**Documento:** SPEC-000 · **Versión:** 5.6 · **Fecha:** 28 de septiembre de 2026 · **Estado:** Borrador para revisión  
 **Relacionados:** todos los specs (SPEC-001 a SPEC-007)
 
 > Este documento es el punto de entrada. Resume la visión del producto, las decisiones tomadas y el plan de implementación, y remite a cada spec para el detalle. Sustituye al documento único "Especificaciones Técnicas y Arquitectura Detallada" (v3 y v4).
@@ -68,14 +68,21 @@ Decisiones cerradas en esta versión. Sustituyen a lo indicado en v3 y v4.
 | Voz del agente | Configurable con `GEMINI_VOICE`; vacía usa la voz por defecto de Gemini | Se puede elegir más adelante sin tocar código |
 | Instrucciones por modo | Fase 2: instrucciones base comunes a ambos modos; las específicas de Libre y Tutor llegan en la Fase 4 | Respetar el plan por fases |
 | Sesiones abandonadas | Al pedir una nueva sesión, las activas de más de 10 min se marcan `interrupted` en la misma transacción | Cumple SPEC-006 §3 sin necesidad de un cron |
+| Texto de consentimiento de grabación | El definido en SPEC-006 §7 | Aprobado antes de la Fase 3 |
+| Registro del consentimiento | Columna `users_profile.recording_consent_at` y endpoint `POST /api/me?action=consent`; sin consentimiento no se emite token de voz | Queda constancia de cuándo aceptó y el backend lo exige |
+| Título provisional de sesión | Hasta la Fase 4 se muestra modo y fecha (p. ej. "Tutor · 12 nov, 15:30"); el usuario puede renombrar | El título generado desde el resumen llega con el resumen |
+| Idioma del resumen | Explicaciones, temas y consejos en español; frases corregidas, términos y ejemplos en inglés | El usuario es hispanohablante aprendiendo inglés |
+| Título generado | La misma llamada del resumen devuelve un `title` corto (máx. 6 palabras); solo se aplica si el usuario no renombró la sesión | Evita una segunda llamada al modelo |
+| Resumen de sesiones interrumpidas | También se genera si hubo conversación (al menos un turno del usuario) | Una sesión cortada sigue teniendo valor pedagógico |
+| Tiempo de retención de audios | 90 días (`AUDIO_RETENTION_DAYS`), o hasta que el usuario borre la sesión. Un Vercel Cron diario borra el audio; transcripción y resumen se conservan | Confirmado en la Fase 5 |
+| Límite de peticiones HTTP | 60 por minuto por usuario (`RATE_LIMIT_PER_MINUTE`), con contador en una tabla de Supabase en lugar de Upstash | Sin servicios ni claves adicionales; suficiente para un grupo reducido |
+| Eliminar la cuenta | `DELETE /api/me` y botón "Eliminar mi cuenta" con confirmación; borra audios, sesiones, turnos, perfil y usuario de Auth. Los administradores no pueden borrarse desde la app | SPEC-006 §7 lo exige; evita quedarse sin administradores |
 
 ## 5. Decisiones Pendientes
 
 | Decisión | Propuesta por defecto |
 |---|---|
-| Tiempo de retención de audios | 90 días, o hasta que el usuario borre la sesión |
 | Voz del agente (valor concreto) | Elegir una voz de Gemini que suene natural en ambos idiomas, probándolas en AI Studio, y ponerla en `GEMINI_VOICE` |
-| Texto de consentimiento de grabación | Redactar antes de la Fase 3 |
 
 ## 6. Plan de Implementación por Fases
 
@@ -107,3 +114,7 @@ Decisiones cerradas en esta versión. Sustituyen a lo indicado en v3 y v4.
 | v5 | División en 8 specs. Se adopta Gemini 3.8 Live en tiempo real con tokens efímeros, sesiones de 7 minutos, grabación del audio, modos Libre/Tutor con resumen y plan por fases. Se eliminan los proveedores separados de STT/TTS y el endpoint de procesamiento de audio en el backend. |
 | v5.1 | Specs movidos a `docs/specs/`. Decisiones: TypeScript con JavaScript cuando sea necesario, solo email y contraseña, email a admins con Resend, reintento de rechazados bloqueado, una rama por spec con PR abierto por el responsable. Sin Docker: el entorno local usa el proyecto de Supabase de desarrollo en la nube. |
 | v5.2 | Fase 2: límite diario de 10 sesiones con día en hora de Colombia, Tutor por defecto, voz configurable, instrucciones base comunes en Fase 2, cierre de sesiones abandonadas al crear una nueva, `POST /api/voice/sessions` devuelve también `model`, y `finish` mínimo en Fase 2. |
+| v5.3 | Fase 3: texto y registro del consentimiento de grabación (`recording_consent_at`, `POST /api/me/consent`), título provisional por modo y fecha, borrado automático por retención aplazado a la Fase 5, un único `AudioContext` para captura, reproducción y grabación. |
+| v5.4 | Fase 4: instrucciones específicas por modo, resumen en español con frases y vocabulario en inglés, `title` generado en la misma llamada, resumen también para sesiones interrumpidas con conversación. |
+| v5.5 | Fase 5: retención de audios de 90 días con Vercel Cron, límite de 60 peticiones/min por usuario con contador en Supabase (sustituye a Upstash), restricción de origen con `ALLOWED_ORIGINS`, logs estructurados por petición y eliminación de cuenta (`DELETE /api/me`). |
+| v5.6 | API agrupada en 7 funciones serverless (límite de 12 del plan Hobby de Vercel): las acciones de un recurso usan `?action=` (`/api/me?action=consent`, `/api/admin/access-requests?id=:id&action=resolve`, `/api/chat/sessions/:id?action=messages\|audio-upload-url\|audio\|finish\|summary`). Node 24.x en Vercel. |

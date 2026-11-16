@@ -1,38 +1,36 @@
 import { base64ToFloat32 } from './pcm'
 
-const OUTPUT_RATE = 24000
+/** Frecuencia del audio que entrega Gemini Live (SPEC-002 §3). */
+const MODEL_RATE = 24000
 
 /**
  * Reproducción del audio del agente (SPEC-002 §3): cola de fragmentos PCM de
  * 24 kHz programados uno tras otro con Web Audio. `flush()` la vacía al
  * instante cuando el usuario interrumpe.
  *
- * Se crea dentro del gesto del usuario para que el navegador permita el audio.
+ * Usa el AudioContext compartido de la sesión; los buffers se crean a 24 kHz y
+ * el navegador los remuestrea a la frecuencia del contexto.
  */
 export class PcmPlayer {
-  readonly context = new AudioContext({ sampleRate: OUTPUT_RATE })
+  /** Salida del agente (tras el volumen), para la animación y la grabación */
   readonly analyser: AnalyserNode
   private readonly output: GainNode
   private readonly sources = new Set<AudioBufferSourceNode>()
   private nextStart = 0
 
-  constructor() {
-    this.output = this.context.createGain()
-    this.analyser = this.context.createAnalyser()
+  constructor(private readonly context: AudioContext) {
+    this.output = context.createGain()
+    this.analyser = context.createAnalyser()
     this.analyser.fftSize = 512
     this.output.connect(this.analyser)
-    this.analyser.connect(this.context.destination)
-  }
-
-  resume() {
-    return this.context.resume()
+    this.analyser.connect(context.destination)
   }
 
   enqueue(base64Pcm: string) {
     const samples = base64ToFloat32(base64Pcm)
     if (samples.length === 0) return
 
-    const buffer = this.context.createBuffer(1, samples.length, OUTPUT_RATE)
+    const buffer = this.context.createBuffer(1, samples.length, MODEL_RATE)
     buffer.copyToChannel(samples, 0)
     const source = this.context.createBufferSource()
     source.buffer = buffer
@@ -60,7 +58,7 @@ export class PcmPlayer {
     this.nextStart = 0
   }
 
-  /** Aviso sonoro breve (SPEC-002 §4, minuto 6:00). */
+  /** Aviso sonoro breve (SPEC-002 §4, minuto 6:00). No se graba. */
   beep(frequency = 880, durationMs = 180) {
     const oscillator = this.context.createOscillator()
     const gain = this.context.createGain()
@@ -74,8 +72,8 @@ export class PcmPlayer {
     oscillator.stop(now + durationMs / 1000 + 0.05)
   }
 
-  async close() {
+  stop() {
     this.flush()
-    if (this.context.state !== 'closed') await this.context.close()
+    this.analyser.disconnect()
   }
 }

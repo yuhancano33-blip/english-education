@@ -1,12 +1,21 @@
 <script setup lang="ts">
-import { watch } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import AppSidebar from '@/components/AppSidebar.vue'
+import { devSkipAccessCheck } from '@/lib/devAccess'
 import { useAccessRequestsStore } from '@/stores/accessRequests'
 import { useAuthStore } from '@/stores/auth'
+import { useHistoryStore } from '@/stores/history'
 
 const auth = useAuthStore()
 const requests = useAccessRequestsStore()
+const history = useHistoryStore()
+const route = useRoute()
 const router = useRouter()
+
+const sidebarOpen = ref(false)
+// El historial solo existe para usuarios aprobados (SPEC-004 §3)
+const showSidebar = computed(() => !!auth.session && auth.isApproved && !!route.meta.requiresApproved)
 
 // Los admins reciben notificaciones in-app mientras tengan la app abierta (SPEC-004 §2)
 watch(
@@ -24,13 +33,31 @@ watch(
 
 async function signOut() {
   await auth.signOut()
+  history.clear()
   await router.replace({ name: 'login' })
 }
 </script>
 
 <template>
+  <div v-if="devSkipAccessCheck" class="dev-banner" role="status">
+    Modo desarrollo: control de acceso desactivado
+  </div>
+
   <header v-if="auth.session" class="app-header">
-    <RouterLink to="/" class="brand">English Education</RouterLink>
+    <div class="header-start">
+      <button
+        v-if="showSidebar"
+        type="button"
+        class="icon-button menu-button"
+        aria-controls="app-sidebar"
+        :aria-expanded="sidebarOpen"
+        aria-label="Abrir historial"
+        @click="sidebarOpen = !sidebarOpen"
+      >
+        ☰
+      </button>
+      <RouterLink to="/" class="brand">English Education</RouterLink>
+    </div>
     <nav aria-label="Principal" class="nav">
       <RouterLink
         v-if="auth.isAdmin"
@@ -43,13 +70,17 @@ async function signOut() {
           {{ requests.pendingCount }}
         </span>
       </RouterLink>
+      <RouterLink v-if="auth.profile" to="/cuenta" class="nav-link">Mi cuenta</RouterLink>
       <button type="button" class="btn btn-ghost" @click="signOut">Cerrar sesión</button>
     </nav>
   </header>
 
-  <main class="app-main">
-    <RouterView />
-  </main>
+  <div class="app-body" :class="{ 'with-sidebar': showSidebar }">
+    <AppSidebar v-if="showSidebar" :open="sidebarOpen" @close="sidebarOpen = false" />
+    <main class="app-main">
+      <RouterView />
+    </main>
+  </div>
 
   <div class="toast-region" role="status" aria-live="polite">
     <div v-if="requests.notice" class="toast">

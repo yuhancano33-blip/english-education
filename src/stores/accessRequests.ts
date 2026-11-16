@@ -31,7 +31,7 @@ export const useAccessRequestsStore = defineStore('accessRequests', () => {
 
   async function resolve(id: string, decision: 'approve' | 'reject') {
     await api<{ id: string; status: UserStatus }>(
-      `/api/admin/access-requests/${id}/resolve`,
+      `/api/admin/access-requests?id=${encodeURIComponent(id)}&action=resolve`,
       { method: 'POST', body: JSON.stringify({ decision }) },
     )
     await load()

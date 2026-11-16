@@ -24,12 +24,12 @@
 - **Una sola sesión activa por usuario**, garantizada con un índice único en base de datos.
 - **Límite diario de sesiones** por usuario (propuesta: 10), verificado al emitir el token.
 - **Duración máxima de 7 minutos**, reforzada por la expiración del token y un proceso que marca como `interrupted` las sesiones activas de más de 10 minutos.
-- **Límite de peticiones HTTP** por usuario en el resto de la API mediante un almacén compartido (por ejemplo, Upstash Redis), ya que un contador en memoria no funciona en serverless.
+- **Límite de peticiones HTTP** por usuario en el resto de la API: 60 por minuto (`RATE_LIMIT_PER_MINUTE`), con un contador por ventana de un minuto en la tabla `rate_limits` de Supabase (un contador en memoria no funciona en serverless). Al superarlo se responde 429 con `Retry-After`.
 - **Tope de gasto** configurado en Google AI Studio (sección Gasto).
 
 ## 4. CORS y Validación de Entrada
 
-- CORS limitado al dominio de producción y a los de preview de Vercel. CORS no protege frente a scripts externos; la protección real la dan el JWT y los límites de uso.
+- CORS limitado al dominio de producción y a los de preview de Vercel. CORS no protege frente a scripts externos; la protección real la dan el JWT y los límites de uso. Implementación: si la petición trae cabecera `Origin` y no es el propio dominio ni coincide con `ALLOWED_ORIGINS` (lista separada por comas, admite `*` en el subdominio), se responde 403.
 - Validación de todos los cuerpos JSON con un esquema (por ejemplo, Zod): longitud máxima de turnos, `duration_seconds` ≤ 420, `mode` válido.
 - Las subidas de audio solo se aceptan en la ruta de la propia sesión, con tipo MIME `audio/webm` o `audio/mp4` y un tamaño máximo de 10 MB.
 
@@ -48,8 +48,9 @@
 
 ## 7. Privacidad
 
-- **Consentimiento:** antes de la primera sesión, el usuario acepta que la conversación se graba y se guarda. Un aviso breve se muestra también al iniciar cada sesión.
-- **Retención:** los audios se conservan 90 días (propuesta pendiente de confirmar) o hasta que el usuario borre la sesión; las transcripciones y resúmenes, hasta que el usuario los borre.
-- **Borrado:** eliminar una sesión borra turnos, resumen y audio. Eliminar la cuenta borra todos sus datos.
+- **Consentimiento:** antes de la primera sesión, el usuario acepta que la conversación se graba y se guarda. Un aviso breve se muestra también al iniciar cada sesión. La aceptación se guarda en `users_profile.recording_consent_at` y el backend no emite tokens de voz sin ella. Texto aprobado:
+  > Tus conversaciones se graban (audio y transcripción) y se guardan en tu historial para que puedas volver a escucharlas. Solo tú puedes acceder a ellas y puedes borrarlas cuando quieras. El audio se procesa con Google Gemini para generar las respuestas.
+- **Retención:** los audios se conservan 90 días o hasta que el usuario borre la sesión; un Vercel Cron diario (`/api/cron/retention`, protegido con `CRON_SECRET`) borra los más antiguos. Las transcripciones y resúmenes se conservan hasta que el usuario los borre.
+- **Borrado:** eliminar una sesión borra turnos, resumen y audio. Eliminar la cuenta (`DELETE /api/me`) borra todos sus datos: audios, sesiones, turnos, solicitudes, perfil y usuario de Auth. Los administradores no pueden eliminarse desde la app.
 - **Nivel gratuito de Gemini:** en ese nivel Google puede usar los datos enviados para mejorar sus productos. Por eso solo se usa en desarrollo con datos de prueba, y se pasa al nivel de pago antes de que usuarios reales usen la aplicación.
 - **Logs:** no registran el contenido de las conversaciones.

@@ -90,8 +90,11 @@ Tras cerrar la sesión, el backend envía la transcripción completa al modelo d
 | `corrections` | Lista de `{ original, corrected, explanation }` con los errores más relevantes (máximo 10) |
 | `vocabulary` | Lista de `{ term, meaning, example }` con palabras o expresiones útiles (máximo 10) |
 | `tips` | De 1 a 3 recomendaciones para la próxima sesión |
+| `title` | Título corto de la sesión (máx. 6 palabras); se guarda en `chat_sessions.title` solo si el usuario no la renombró |
 
-El resumen se guarda en `chat_sessions.summary` y se muestra en el historial. Si la generación falla, la sesión queda completada sin resumen y se puede reintentar desde la interfaz.
+Idioma: `summary`, `explanation`, `meaning` y `tips` en español; `original`, `corrected`, `term` y `example` en inglés. La transcripción se envía como datos y el modelo no debe seguir instrucciones contenidas en ella.
+
+El resumen se guarda en `chat_sessions.summary` y se muestra en el historial. Si la generación falla, la sesión queda completada sin resumen y se puede reintentar desde la interfaz. Se genera también para sesiones interrumpidas, siempre que haya al menos un turno del usuario; sin conversación no hay resumen.
 
 ## 8. Manejo de Errores
 

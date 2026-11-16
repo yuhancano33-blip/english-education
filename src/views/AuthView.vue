@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { authErrorMessage } from '@/lib/authErrors'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -11,7 +12,9 @@ const email = ref('')
 const password = ref('')
 const submitting = ref(false)
 const error = ref<string | null>(null)
-const info = ref<string | null>(null)
+const info = ref<string | null>(
+  useRoute().query.cuenta === 'eliminada' ? 'Tu cuenta y todos tus datos se eliminaron.' : null,
+)
 
 const title = computed(() => (mode.value === 'login' ? 'Iniciar sesión' : 'Crear cuenta'))
 
@@ -39,7 +42,7 @@ async function submit() {
       }
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'No se pudo completar la operación'
+    error.value = authErrorMessage(err)
   } finally {
     submitting.value = false
   }

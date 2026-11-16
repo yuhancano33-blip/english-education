@@ -4,11 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "vite",
-    "dev:full": "vercel dev",
+    "dev:full": "npx vercel dev",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit && tsc --noEmit -p api/tsconfig.json",
