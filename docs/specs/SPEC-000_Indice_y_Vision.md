@@ -1,7 +1,7 @@
 # SPEC-000 · Índice y Visión General
 
 **Proyecto:** Agente de Voz Bilingüe (Inglés/Español)  
-**Documento:** SPEC-000 · **Versión:** 5.6 · **Fecha:** 28 de septiembre de 2026 · **Estado:** Borrador para revisión  
+**Documento:** SPEC-000 · **Versión:** 5.7 · **Fecha:** 28 de septiembre de 2026 · **Estado:** Borrador para revisión  
 **Relacionados:** todos los specs (SPEC-001 a SPEC-007)
 
 > Este documento es el punto de entrada. Resume la visión del producto, las decisiones tomadas y el plan de implementación, y remite a cada spec para el detalle. Sustituye al documento único "Especificaciones Técnicas y Arquitectura Detallada" (v3 y v4).
@@ -74,6 +74,8 @@ Decisiones cerradas en esta versión. Sustituyen a lo indicado en v3 y v4.
 | Idioma del resumen | Explicaciones, temas y consejos en español; frases corregidas, términos y ejemplos en inglés | El usuario es hispanohablante aprendiendo inglés |
 | Título generado | La misma llamada del resumen devuelve un `title` corto (máx. 6 palabras); solo se aplica si el usuario no renombró la sesión | Evita una segunda llamada al modelo |
 | Resumen de sesiones interrumpidas | También se genera si hubo conversación (al menos un turno del usuario) | Una sesión cortada sigue teniendo valor pedagógico |
+| Resumen solo en modo Tutor | La conversación libre no tiene resumen ni correcciones ni botón para generarlo, y no llama al modelo de texto. Qué ofrece cada modo se define en un solo sitio (`api/_lib/modes.ts`, `src/lib/sessionModes.ts`) | Pedido por el responsable: el modo libre es solo práctica y no debe mezclarse con la lógica del tutor |
+| Momento de generar el resumen | Fuera del cierre de sesión: la vista de detalle lo pide al abrirse, con 3 intentos y "Reintentar" manual | Con un único intento dentro de `finish`, los fallos de Gemini (timeout, 503, 504) dejaban sesiones de tutor sin resumen |
 | Tiempo de retención de audios | 90 días (`AUDIO_RETENTION_DAYS`), o hasta que el usuario borre la sesión. Un Vercel Cron diario borra el audio; transcripción y resumen se conservan | Confirmado en la Fase 5 |
 | Límite de peticiones HTTP | 60 por minuto por usuario (`RATE_LIMIT_PER_MINUTE`), con contador en una tabla de Supabase en lugar de Upstash | Sin servicios ni claves adicionales; suficiente para un grupo reducido |
 | Eliminar la cuenta | `DELETE /api/me` y botón "Eliminar mi cuenta" con confirmación; borra audios, sesiones, turnos, perfil y usuario de Auth. Los administradores no pueden borrarse desde la app | SPEC-006 §7 lo exige; evita quedarse sin administradores |
@@ -118,3 +120,4 @@ Decisiones cerradas en esta versión. Sustituyen a lo indicado en v3 y v4.
 | v5.4 | Fase 4: instrucciones específicas por modo, resumen en español con frases y vocabulario en inglés, `title` generado en la misma llamada, resumen también para sesiones interrumpidas con conversación. |
 | v5.5 | Fase 5: retención de audios de 90 días con Vercel Cron, límite de 60 peticiones/min por usuario con contador en Supabase (sustituye a Upstash), restricción de origen con `ALLOWED_ORIGINS`, logs estructurados por petición y eliminación de cuenta (`DELETE /api/me`). |
 | v5.6 | API agrupada en 7 funciones serverless (límite de 12 del plan Hobby de Vercel): las acciones de un recurso usan `?action=` (`/api/me?action=consent`, `/api/admin/access-requests?id=:id&action=resolve`, `/api/chat/sessions/:id?action=messages\|audio-upload-url\|audio\|finish\|summary`). Node 24.x en Vercel. |
+| v5.7 | Corrección: el resumen del tutor se genera tras el cierre, desde el detalle, con reintentos (antes un fallo de Gemini dentro de `finish` dejaba la sesión sin resumen). La conversación libre deja de tener resumen y correcciones; los modos se definen en una estrategia por modo. |

@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SessionSummaryCards from '@/components/SessionSummaryCards.vue'
+import { useSessionSummary } from '@/composables/useSessionSummary'
 import { api, ApiError } from '@/lib/api'
 import { formatDuration, MODE_LABELS, sessionTitle } from '@/lib/sessionFormat'
+import { modeHasSummary } from '@/lib/sessionModes'
 import { useHistoryStore } from '@/stores/history'
-import type { SessionSummary, SessionSummaryData, SessionTurn } from '@/types'
+import type { SessionSummary, SessionTurn } from '@/types'
 
 /** Detalle de una sesión: audio, resumen y transcripción (SPEC-003 §5). */
 const route = useRoute()
@@ -24,17 +26,21 @@ const speeds = [0.75, 1, 1.25]
 
 const dateFormat = new Intl.DateTimeFormat('es', { dateStyle: 'full', timeStyle: 'short' })
 
+// Resumen (SPEC-002 §7): se genera al abrir una sesión cerrada que aún no lo tiene
+const summary = useSessionSummary(session, turns, () => void history.load())
+
 async function load(id: string) {
   loading.value = true
   error.value = null
   audioUrl.value = null
   audioError.value = null
   renewedUrl = false
-  summaryError.value = null
+  summary.reset()
   try {
     const data = await api<{ session: SessionSummary; turns: SessionTurn[] }>(`/api/chat/sessions/${id}`)
     session.value = data.session
     turns.value = data.turns
+    summary.ensure()
     if (data.session.has_audio) await loadAudioUrl()
   } catch (err) {
     session.value = null
@@ -73,30 +79,6 @@ async function onAudioError() {
   await loadAudioUrl()
   if (audio.value && audioUrl.value) {
     audio.value.currentTime = position
-  }
-}
-
-// Resumen (SPEC-002 §7): si falló al cerrar la sesión, se puede reintentar
-const hasUserTurns = computed(() => turns.value.some((t) => t.sender === 'user'))
-const generating = ref(false)
-const summaryError = ref<string | null>(null)
-
-async function generateSummary() {
-  if (!session.value) return
-  generating.value = true
-  summaryError.value = null
-  try {
-    const data = await api<{ summary: SessionSummaryData; title: string | null }>(
-      `/api/chat/sessions/${session.value.id}?action=summary`,
-      { method: 'POST' },
-    )
-    session.value.summary = data.summary
-    session.value.title = data.title
-    void history.load()
-  } catch (err) {
-    summaryError.value = err instanceof Error ? err.message : 'No se pudo generar el resumen'
-  } finally {
-    generating.value = false
   }
 }
 
@@ -168,15 +150,27 @@ watch(
         </p>
       </div>
 
-      <SessionSummaryCards v-if="session.summary" :summary="session.summary" />
-      <div v-else-if="hasUserTurns" class="card">
-        <h2 class="section-title">Resumen</h2>
-        <p class="muted">Esta conversación todavía no tiene resumen.</p>
-        <p v-if="summaryError" class="alert alert-error" role="alert">{{ summaryError }}</p>
-        <button type="button" class="btn btn-primary" :disabled="generating" @click="generateSummary">
-          {{ generating ? 'Generando…' : 'Generar resumen' }}
-        </button>
-      </div>
+      <!-- Resumen y correcciones: solo en modos con resumen (Tutor). La
+           conversación libre no tiene resumen ni botón para generarlo. -->
+      <template v-if="modeHasSummary(session.mode)">
+        <SessionSummaryCards v-if="session.summary" :summary="session.summary" />
+        <div v-else-if="summary.generating.value" class="card center" role="status">
+          <div class="spinner" aria-hidden="true" />
+          <p>Generando el resumen y las correcciones…</p>
+        </div>
+        <div v-else-if="summary.empty.value" class="card">
+          <h2 class="section-title">Resumen</h2>
+          <p class="muted">No hubo conversación suficiente para generar un resumen.</p>
+        </div>
+        <div v-else-if="summary.hasUserTurns.value" class="card">
+          <h2 class="section-title">Resumen</h2>
+          <p v-if="summary.error.value" class="alert alert-error" role="alert">{{ summary.error.value }}</p>
+          <p v-else class="muted">Esta conversación todavía no tiene resumen.</p>
+          <button type="button" class="btn btn-primary" @click="summary.generate()">
+            {{ summary.error.value ? 'Reintentar' : 'Generar resumen' }}
+          </button>
+        </div>
+      </template>
 
       <div class="card">
         <h2 class="section-title">Transcripción</h2>

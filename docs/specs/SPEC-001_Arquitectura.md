@@ -40,7 +40,7 @@ Arquitectura Serverless en tres capas más un servicio de IA externo. La diferen
 - **3. Conexión:** el frontend abre el WebSocket con Gemini usando el token y empieza a enviar audio del micrófono y a grabar.
 - **4. Conversación:** Gemini responde con audio en streaming y transcripciones del usuario y del modelo. Al terminar cada turno, el frontend envía los textos a `POST /api/chat/sessions/:id?action=messages`.
 - **5. Cierre:** al llegar a 7 minutos o cuando el usuario finaliza, se cierra el WebSocket, se detiene la grabación y se sube el audio a Supabase Storage con una URL firmada.
-- **6. Resumen:** el frontend llama a `POST /api/chat/sessions/:id?action=finish`; el backend marca la sesión como completada y genera el resumen.
+- **6. Cierre y resumen:** el frontend llama a `POST /api/chat/sessions/:id?action=finish` y el backend marca la sesión como completada. En modo Tutor, la vista de detalle pide después el resumen (`?action=summary`), con reintentos; en conversación libre no hay resumen.
 - **7. Historial:** la sesión aparece en el sidebar con transcripción, audio y resumen.
 
 ## 5. Límites de Plataforma Relevantes

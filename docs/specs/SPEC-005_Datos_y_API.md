@@ -86,8 +86,8 @@ Para no superar el máximo de 12 funciones serverless por despliegue del plan Ho
 | POST | `/api/voice/sessions` | approved | Body `{ mode }`. Valida límites, crea la sesión y devuelve `sessionId`, token efímero, `expiresAt`, `maxDurationSec`, `mode` y `model` |
 | POST | `/api/chat/sessions/:id?action=messages` | Dueño | Body `{ turns: [{ turn_index, sender, content }] }`. Guarda turnos de la transcripción |
 | POST | `/api/chat/sessions/:id?action=audio-upload-url` | Dueño | Devuelve una URL firmada para subir el audio a Storage |
-| POST | `/api/chat/sessions/:id?action=finish` | Dueño | Body `{ duration_seconds, audio_path, audio_mime, status }`. Cierra la sesión y genera el resumen. En la Fase 2 solo acepta `{ duration_seconds, status }`; el audio y el resumen se añaden en las fases 3 y 4 |
-| POST | `/api/chat/sessions/:id?action=summary` | Dueño | Vuelve a generar el resumen si falló. 409 `empty_transcript` si no hubo conversación; 502 si el modelo falla |
+| POST | `/api/chat/sessions/:id?action=finish` | Dueño | Body `{ duration_seconds, audio_path, audio_mime, status }`. Cierra la sesión. No genera el resumen: devuelve `summary_status: "pending"` (tutor) o `"not_applicable"` (libre) |
+| POST | `/api/chat/sessions/:id?action=summary` | Dueño | Genera el resumen de una sesión de tutor cerrada. 409 `summary_not_available` en conversación libre, `empty_transcript` sin conversación, `session_active` si sigue en curso; 502 si el modelo falla |
 | GET | `/api/chat/sessions` | approved | Lista paginada de sesiones para el sidebar (`?limit=` y `?before=<created_at>` como cursor) |
 | GET | `/api/chat/sessions/:id` | Dueño | Detalle: datos de la sesión, turnos y resumen |
 | GET | `/api/chat/sessions/:id?action=audio` | Dueño | URL firmada de descarga del audio (válida pocos minutos) |

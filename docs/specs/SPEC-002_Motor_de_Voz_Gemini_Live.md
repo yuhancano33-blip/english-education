@@ -68,7 +68,7 @@ El límite se aplica en el frontend y está respaldado en el servidor por la exp
 | Objetivo | Practicar la fluidez hablando de cualquier tema | Mejorar la precisión con correcciones |
 | Correcciones en vivo | No, salvo que el usuario las pida | Solo errores importantes, breves y sin interrumpir cada frase |
 | Idioma | Responde en el idioma del usuario | Anima a hablar en inglés; usa español para aclarar dudas |
-| Resumen final | Sí | Sí, con más detalle en las correcciones |
+| Resumen final | No: solo práctica, sin resumen ni correcciones | Sí: resumen, correcciones, vocabulario y consejos |
 
 #### Pautas de las instrucciones de sistema
 
@@ -82,7 +82,7 @@ Las instrucciones se guardan en el backend (no en el frontend) y se fijan en el 
 
 ## 7. Resumen al Finalizar
 
-Tras cerrar la sesión, el backend envía la transcripción completa al modelo de texto y pide una respuesta JSON con esta estructura:
+Solo en modo **Tutor**. Tras cerrar la sesión, el cliente pide el resumen (`POST /api/chat/sessions/:id?action=summary`) y el backend envía la transcripción completa al modelo de texto con una respuesta JSON con esta estructura:
 
 | Campo | Contenido |
 |---|---|
@@ -94,7 +94,7 @@ Tras cerrar la sesión, el backend envía la transcripción completa al modelo d
 
 Idioma: `summary`, `explanation`, `meaning` y `tips` en español; `original`, `corrected`, `term` y `example` en inglés. La transcripción se envía como datos y el modelo no debe seguir instrucciones contenidas en ella.
 
-El resumen se guarda en `chat_sessions.summary` y se muestra en el historial. Si la generación falla, la sesión queda completada sin resumen y se puede reintentar desde la interfaz. Se genera también para sesiones interrumpidas, siempre que haya al menos un turno del usuario; sin conversación no hay resumen.
+El resumen se guarda en `chat_sessions.summary` y se muestra en el historial. No se genera dentro del cierre de la sesión (`finish`): el modelo puede tardar más que el tiempo de la función. Lo pide la vista de detalle al abrirse, con hasta 3 intentos (esperas de 0, 3 y 8 s) para errores transitorios; si todos fallan, la sesión queda sin resumen y se ofrece "Reintentar". La conversación libre nunca llama al modelo de texto. Se genera también para sesiones interrumpidas, siempre que haya al menos un turno del usuario; sin conversación no hay resumen.
 
 ## 8. Manejo de Errores
 
